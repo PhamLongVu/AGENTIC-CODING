@@ -1,0 +1,32 @@
+name: lint
+# Static checks only. No cloud credentials, no side effects.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  shellcheck-lite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: bash syntax of all scripts
+        run: |
+          find scripts tests gateway deploy workspace -name '*.sh' -print0 |
+            xargs -0 -n1 bash -n
+      - name: compose config parses
+        run: |
+          sed -e 's/=CHANGE_ME.*/=ci-dummy/' .env.example > .env.ci
+          echo "DOCKER_GID=0" >> .env.ci
+          docker compose --env-file .env.ci config -q
+      - name: workflows and JSON files are valid
+        run: |
+          python3 - <<'EOF'
+          import json, sys, glob, yaml
+          for f in glob.glob('.github/workflows/*.yaml') + glob.glob('.github/workflows/*.yml'):
+              yaml.safe_load(open(f))
+          for f in glob.glob('**/*.json', recursive=True):
+              if 'node_modules' in f: continue
+              json.load(open(f))
+          print("all yaml/json valid")
+          EOF

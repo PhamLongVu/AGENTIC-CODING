@@ -6,6 +6,10 @@
 *.pem
 secrets/
 litellm-virtual-keys.json
+# local session tokens & issued virtual keys (NEVER commit)
+.coder-session
+.demo-virtual-key
+*-virtual-key*
 
 # ---- Terraform ----
 .terraform/

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "litellm": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "LiteLLM Gateway",
+      "options": {
+        "baseURL": "__LITELLM_BASE_URL__",
+        "apiKey": "{env:OPENCODE_PROVIDER_API_KEY}"
+      },
+      "models": {
+        "anthropic.claude-3-5-sonnet-20241022-v2:0": {
+          "name": "Claude 3.5 Sonnet v2 (gateway)"
+        },
+        "amazon.nova-pro-v1:0": {
+          "name": "Amazon Nova Pro (gateway)"
+        }
+      }
+    }
+  }
+}

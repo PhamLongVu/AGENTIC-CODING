@@ -1,0 +1,41 @@
+name: deploy
+# =============================================================================
+# DEPLOYMENT IS OWNER-GATED. This workflow can NEVER run on its own:
+#   * workflow_dispatch only (no push/PR triggers)
+#   * requires environment 'aws-poc' with required reviewers = owner
+#   * requires secret DEPLOY_APPROVAL_REFERENCE (the conversation/approval
+#     record the owner quotes when approving)
+# There is nothing to deploy to until the owner approves AWS resources
+# (TASKS.md 3.5). Until then this file documents the intended gate shape.
+# =============================================================================
+on:
+  workflow_dispatch:
+    inputs:
+      approval_reference:
+        description: 'Where approval was recorded (e.g. meeting/ticket id)'
+        required: true
+
+concurrency:
+  group: aws-poc-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: aws-poc # protection rule: required reviewer = owner
+    steps:
+      - uses: actions/checkout@v4
+      - name: refuse without recorded approval
+        env:
+          EXPECTED: ${{ secrets.DEPLOY_APPROVAL_REFERENCE }}
+          GIVEN: ${{ inputs.approval_reference }}
+        run: |
+          if [[ -z "$EXPECTED" || "$EXPECTED" != "$GIVEN" ]]; then
+            echo "::error::no matching DEPLOY_APPROVAL_REFERENCE; deployment is owner-gated (TASKS.md 3.5)"
+            exit 1
+          fi
+      - name: deployment is executed by the operator, not CI
+        run: |
+          echo "This workflow intentionally stops here."
+          echo "Deployment procedure: docs/operations/deployment.md §runbook"
+          echo "(terraform apply + bootstrap-host.sh run by the operator.)"

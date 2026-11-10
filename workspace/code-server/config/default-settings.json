@@ -1,0 +1,10 @@
+{
+  "$comment": "Seeded once into each workspace volume at ~/.local/share/code-server/User/settings.json (user-editable afterwards). Security posture lives in launch flags, not here: loopback bind + --auth none is safe because Coder's authenticated proxy is the only path in.",
+  "update.mode": "none",
+  "telemetry.enableTelemetry": false,
+  "telemetry.enableCrashReporter": false,
+  "extensions.autoCheckUpdates": false,
+  "files.autoSave": "onFocusChange",
+  "workbench.startupEditor": "none",
+  "terminal.integrated.defaultProfile.linux": "bash"
+}

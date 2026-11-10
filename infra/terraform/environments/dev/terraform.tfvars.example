@@ -1,0 +1,11 @@
+# Copy to terraform.tfvars (git-ignored) and fill in. NEVER commit real values.
+# terraform apply additionally requires explicit owner approval (BACKLOG 3.5).
+
+# Operator's source network for SSH, e.g. "203.0.113.4/32"
+admin_cidr = "CHANGE_ME"
+
+# Optional: EC2 key pair name for SSH fallback (SSM works without one)
+# ssh_key_name = "CHANGE_ME"
+
+# Tighten when the developer team CIDR is known
+# dev_cidr = "0.0.0.0/0"

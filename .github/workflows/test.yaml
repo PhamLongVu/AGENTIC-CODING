@@ -1,0 +1,24 @@
+name: test
+# Static + infrastructure suites (no running stack, no cloud).
+# The full local integration suite (make test) needs a live docker stack
+# with health checks; that stays a developer-machine / self-hosted-runner
+# concern until a self-hosted runner is provided (TASKS.md deferred).
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: unit suite
+        run: tests/unit/run.sh
+
+  infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: terraform fmt + validate (pinned container, no creds)
+        run: tests/infrastructure/run.sh

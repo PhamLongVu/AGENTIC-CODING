@@ -1,0 +1,13 @@
+# Remote state (from the original plan §Phase 2). Enable when a second
+# environment or a second operator arrives — a single-operator POC with
+# local state is acceptable (state files are git-ignored).
+#
+# terraform {
+#   backend "s3" {
+#     bucket       = "CHANGE_ME-tfstate"
+#     key          = "cloud-coding-poc/dev.tfstate"
+#     region       = "ap-southeast-1"
+#     use_lockfile = true        # S3 native locking (current mechanism)
+#     encrypt      = true
+#   }
+# }

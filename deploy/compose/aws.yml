@@ -1,0 +1,40 @@
+# =============================================================================
+# AWS MODE override — apply ON TOP of the root docker-compose.yml:
+#   docker compose -f docker-compose.yml -f deploy/compose/aws.yml up -d
+# =============================================================================
+# Differences vs local (docs/architecture/security-model.md §bedrock):
+#   1. LiteLLM runs on the HOST network. It is the only component that must
+#      reach IMDS (instance profile) to invoke Bedrock — IMDSv2 hop limit 1
+#      makes container networks unable to reach metadata, so the gateway
+#      alone goes host-net. Its port 4000 is NOT opened in the security
+#      group: workspaces reach it via the host gateway, the world cannot.
+#   2. PostgreSQL publishes 5432 on host loopback ONLY (for the host-net
+#      LiteLLM to reach). Nothing external.
+#   3. Coder unchanged: published 7080, security-gated.
+# Requires docker compose v2.24+ for `!reset`.
+# =============================================================================
+
+services:
+  postgres:
+    ports: !reset
+      - "127.0.0.1:5432:5432"
+
+  litellm:
+    # host network => DATABASE_URL must use the host-loopback postgres.
+    # The environment DATABASE_URL is fully replaced here (not merged).
+    environment:
+      DATABASE_URL: postgresql://${LITELLM_PG_USER}:${LITELLM_PG_PASSWORD}@127.0.0.1:5432/${LITELLM_PG_DATABASE}
+      STORE_MODEL_IN_DB: "True"
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
+      AWS_REGION: ${AWS_REGION}
+    network_mode: host
+    # host-mode containers cannot use port mappings; 4000 binds on the host
+    # directly. Security group does NOT allow inbound 4000 — host-gateway
+    # traffic from workspaces is intra-host and unaffected.
+    ports: !reset []
+    networks: !reset []
+
+  coder:
+    # unchanged except: on AWS the access URL is the EIP; passed via .env
+    extra_hosts: !reset []

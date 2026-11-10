@@ -1,0 +1,21 @@
+name: build-images
+# Builds the workspace image to prove the Dockerfile is valid.
+# Images are NOT pushed (no registry in MVP scope — TASKS.md deferred: ECR).
+on:
+  pull_request:
+    paths:
+      - 'workspace/images/**'
+      - '.github/workflows/build-images.yaml'
+  workflow_dispatch:
+
+jobs:
+  workspace-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: build workspace image (no push)
+        run: docker build -t cloudcoding-workspace:ci workspace/images/development/
+      - name: pinned versions inside image
+        run: |
+          docker run --rm cloudcoding-workspace:ci code-server --version | head -1 | grep -q 4.145.2
+          docker run --rm cloudcoding-workspace:ci opencode --version  | head -1 | grep -q 1.19.5

@@ -1,0 +1,37 @@
+# =============================================================================
+# LiteLLM gateway configuration — MOCK mode (local development / tests)
+# =============================================================================
+# Selected by AI_PROVIDER_MODE=mock in .env (docs/decisions/ADR-0005).
+# Model NAMES are identical to config-bedrock.yaml so the OpenCode provider
+# configuration inside workspaces is byte-for-byte the same in both modes.
+# mock_response makes LiteLLM answer without contacting any real provider:
+# no AWS account, no API keys, no network egress.
+# =============================================================================
+
+model_list:
+  - model_name: anthropic.claude-3-5-sonnet-20241022-v2:0
+    litellm_params:
+      model: openai/gpt-4o-mini # placeholder provider; never called
+      api_key: sk-mock-not-a-real-key
+      mock_response: >-
+        MOCK RESPONSE from anthropic.claude-3-5-sonnet-20241022-v2:0.
+        This is a simulated completion served by LiteLLM mock mode for
+        local development. No request reached AWS Bedrock.
+
+  - model_name: amazon.nova-pro-v1:0
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: sk-mock-not-a-real-key
+      mock_response: >-
+        MOCK RESPONSE from amazon.nova-pro-v1:0. This is a simulated
+        completion served by LiteLLM mock mode for local development.
+        No request reached AWS Bedrock.
+
+litellm_settings:
+  # per-request telemetry that populates the LiteLLM spend tables
+  drop_params: true
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  store_model_in_db: true

@@ -1,0 +1,117 @@
+# =============================================================================
+# Cloud Coding Platform — platform stack (local dev AND AWS POC)
+# =============================================================================
+# The SAME file serves local development and the AWS POC instance; environment
+# differences live ONLY in deploy/docker-compose.aws.yml (overrides).
+#
+# Services: postgres (platform metadata), litellm (AI gateway, DB mode),
+# coder (workspace control plane). Workspace containers themselves are NOT
+# defined here — the Coder provisioner creates them per-workspace via the
+# docker socket mounted into the coder service ONLY (docs/SECURITY.md).
+#
+# Port bindings (0.0.0.0 so workspace containers can reach the host through
+# host-gateway; see docs/ARCHITECTURE.md §networking):
+#   7080  Coder UI/API        — developer browsers + workspace agents
+#   4000  LiteLLM gateway API — workspaces only (never exposed on AWS: SG blocks)
+# Restrict external access with the host firewall / security group.
+# =============================================================================
+
+name: cloud-coding-platform
+
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      # Consumed by services/postgres/init/01-create-app-dbs.sh
+      CODER_PG_DATABASE: ${CODER_PG_DATABASE}
+      CODER_PG_USER: ${CODER_PG_USER}
+      CODER_PG_PASSWORD: ${CODER_PG_PASSWORD}
+      LITELLM_PG_DATABASE: ${LITELLM_PG_DATABASE}
+      LITELLM_PG_USER: ${LITELLM_PG_USER}
+      LITELLM_PG_PASSWORD: ${LITELLM_PG_PASSWORD}
+    volumes:
+      - platform_pgdata:/var/lib/postgresql/data
+      - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${CODER_PG_DATABASE}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks: [platform]
+
+  litellm:
+    image: ${LITELLM_IMAGE}
+    restart: unless-stopped
+    # DB mode: config file seeds the model list; virtual keys, budgets and
+    # usage live in postgres. See docs/decisions/ADR-0004.
+    command:
+      - --config
+      - /app/config.yaml
+      - --port
+      - "4000"
+    environment:
+      DATABASE_URL: postgresql://${LITELLM_PG_USER}:${LITELLM_PG_PASSWORD}@postgres:5432/${LITELLM_PG_DATABASE}
+      STORE_MODEL_IN_DB: "True"
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
+    volumes:
+      # AI_PROVIDER_MODE selects mock|bedrock (docs/decisions/ADR-0005)
+      - ./gateway/litellm/config/config-${AI_PROVIDER_MODE}.yaml:/app/config.yaml:ro
+    ports:
+      - "${LITELLM_PORT:-4000}:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request as u; u.urlopen(\"http://127.0.0.1:4000/health/liveliness\", timeout=3)'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    networks: [platform]
+
+  coder:
+    image: ${CODER_IMAGE}
+    restart: unless-stopped
+    environment:
+      CODER_PG_CONNECTION_URL: postgresql://${CODER_PG_USER}:${CODER_PG_PASSWORD}@postgres:5432/${CODER_PG_DATABASE}?sslmode=disable
+      CODER_HTTP_ADDRESS: 0.0.0.0:7080
+      # Must be reachable from developer browsers AND workspace containers:
+      #   local: http://host.docker.internal:7080 (make dev-hosts-setup)
+      #   aws  : http://<EC2_PUBLIC_IP>:7080
+      CODER_ACCESS_URL: ${CODER_ACCESS_URL}
+      CODER_TELEMETRY_ENABLE: "false"
+    # docker socket group gid on the HOST — auto-corrected by `make up`
+    # (scripts/env-ensure.sh). This is the ONLY service allowed the socket.
+    group_add:
+      - "${DOCKER_GID}"
+    extra_hosts:
+      # so the coder server can also resolve its own CODER_ACCESS_URL
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${CODER_HTTP_PORT:-7080}:7080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - platform_coder_home:/home/coder
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:7080/api/v2/buildinfo >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+    networks: [platform]
+
+volumes:
+  platform_pgdata:
+  platform_coder_home:
+
+networks:
+  platform:
+    name: platform

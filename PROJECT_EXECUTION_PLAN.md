@@ -31,13 +31,23 @@
 > | 13 | Registry/storage | ECR, S3 for backups | **Deferred** — not required for MVP; local registry pull-through only if a demonstrated need arises |
 > | 14 | Monitoring | CloudWatch + Prometheus/Grafana | **Minimal**: docker health checks + host-level scripts for POC; full observability deferred |
 > | 15 | Auth | OIDC for developers | **AWS IAM Identity Center for AWS administration only**; developer-facing POC auth = Coder built-in accounts; OIDC remains the documented extension path |
-> | 16 | Agent model | Claude Code implements, Codex reviews | Retained as guidance; in this repo the review duty is fulfilled by whichever independent reviewer the owner assigns |
+> | 16 | Agent model | Claude Code implements, Codex reviews | **Owner ruling 2026-11-10: no separate Codex agent** — Claude does implementation *and* review. The review duty becomes a fresh-eyes self-review pass (discipline defined in `AGENTS.md` §Review pass) before any security sign-off; the owner may still assign an external human reviewer for 4.7 |
 >
 > Phases 2–10 of the original plan are re-scoped by the baseline into the milestone
-> plan in `docs/BACKLOG.md` (local-first, then AWS POC, then validation). Nothing in
+> plan in `TASKS.md` (local-first, then AWS POC, then validation). Nothing in
 > the original plan is deleted; items that no longer apply at MVP scope (EKS
 > acceptance criteria, RDS backups, EKS-specific security tests) are marked there as
 > **deferred** with their trigger conditions.
+>
+> **Repository layout note**: the implemented repo follows §3's structure for
+> everything that is implemented (workspace/, gateway/, deploy/, infra/,
+> tests/, docs/{architecture,operations,decisions/ADR,runbooks}, root tracking
+> files, .github/workflows). Per §3's own rule ("create each directory when
+> its implementation begins") the deferred components' directories are
+> **omitted**: eks/, rds/, redis/, ecr/, s3/, monitoring/, helm/,
+> kubernetes/, prod/, load tests, platform-api source (README-only
+> placeholder explaining the trigger). `CODEX.md` from §3 is likewise
+> omitted per reconciliation row 16 — its content lives in `AGENTS.md`.
 
 ## 1. Project Overview
 
