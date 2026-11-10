@@ -1,5 +1,44 @@
 # Project Execution Plan: Cloud Coding Platform
 
+> **STATUS: SUPERSEDED IN PART — see `docs/CONFIGURATION_BASELINE.md` (single source of truth).**
+>
+> This document is the original execution plan, received 2026-11-10. It was written
+> for a **50+ developer, EKS-based production platform**. The project owner has since
+> confirmed a **re-scoped MVP baseline** (single EC2 instance, Docker Compose,
+> 5 concurrent workspaces, USD 200/month, AWS ap-southeast-1).
+>
+> The document is retained in full because most of its *functional* requirements,
+> security constraints, lifecycle semantics, test procedures, approval gates, and
+> the Definition of Done remain binding. Where its *technical implementation
+> details* conflict with the confirmed baseline, the baseline wins.
+>
+> ## Reconciliation of conflicts (baseline wins)
+>
+> | # | Area | Original plan says | Confirmed baseline resolution |
+> |---|---|---|---|
+> | 1 | Scale | 50+ developers, 30–50 concurrent workspaces | **5 concurrent workspaces** initially; design notes for growth kept, capacity claims must be re-benchmarked |
+> | 2 | Compute | AWS EKS + managed node groups / Karpenter | **Single EC2 instance**; EKS explicitly out of scope for MVP |
+> | 3 | Orchestration | Helm charts, Kubernetes manifests | **Docker Compose**; Helm/K8s out of scope for MVP |
+> | 4 | Database | AWS RDS PostgreSQL | **PostgreSQL as a Docker container** on the EC2 instance |
+> | 5 | Cache | AWS ElastiCache Redis | **None** — single LiteLLM replica needs no shared Redis cache; revisit only with a demonstrated requirement |
+> | 6 | Networking | 3 AZs, public/private/data subnets, NAT | **Single instance in a single AZ**, minimal VPC; multi-AZ out of scope |
+> | 7 | Workspace runtime | Kubernetes Pods + PVCs (EBS CSI) | **Docker containers + named Docker volumes** on the instance, provisioned by Coder's Docker provider |
+> | 8 | Workspace profiles | Small 2/4/30, Medium 4/8/50, Large 8/16/100 (vCPU/GiB/GiB) | **Small 1/2/20, Medium 2/4/30, Large 4/8/50** |
+> | 9 | Budget | Not quantified | **USD 200/month hard ceiling** for infrastructure |
+> | 10 | Region | Unspecified | **ap-southeast-1 (Singapore)** |
+> | 11 | Domain/TLS | Production domain, TLS everywhere | **Temporary endpoint, no custom domain** for POC; TLS posture documented as a known limitation |
+> | 12 | AI provider | Unspecified | **AWS Bedrock**, reachable **only** through LiteLLM |
+> | 13 | Registry/storage | ECR, S3 for backups | **Deferred** — not required for MVP; local registry pull-through only if a demonstrated need arises |
+> | 14 | Monitoring | CloudWatch + Prometheus/Grafana | **Minimal**: docker health checks + host-level scripts for POC; full observability deferred |
+> | 15 | Auth | OIDC for developers | **AWS IAM Identity Center for AWS administration only**; developer-facing POC auth = Coder built-in accounts; OIDC remains the documented extension path |
+> | 16 | Agent model | Claude Code implements, Codex reviews | Retained as guidance; in this repo the review duty is fulfilled by whichever independent reviewer the owner assigns |
+>
+> Phases 2–10 of the original plan are re-scoped by the baseline into the milestone
+> plan in `docs/BACKLOG.md` (local-first, then AWS POC, then validation). Nothing in
+> the original plan is deleted; items that no longer apply at MVP scope (EKS
+> acceptance criteria, RDS backups, EKS-specific security tests) are marked there as
+> **deferred** with their trigger conditions.
+
 ## 1. Project Overview
 
 ### Objective
