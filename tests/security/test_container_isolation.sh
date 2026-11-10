@@ -36,8 +36,14 @@ if [[ -z "$WS_CONTAINERS" ]]; then
   _t_ok "no live workspaces right now (covered by tests/integration/test_isolation.sh)"
 else
   for c in $WS_CONTAINERS; do
-    UID0="$(docker inspect "$c" | jq -r '.[0].Config.User // "root"')"
-    [[ "$UID0" != "root" && "$UID0" != "0:0" ]] && _t_ok "$c runs non-root ($UID0)" || _t_fail "$c runs as root"
+    # jq `// "root"` does NOT substitute for "" (only null/false) — an unset
+    # User ("" == root at runtime) would otherwise pass the non-root check.
+    UID0="$(docker inspect "$c" | jq -r '.[0].Config.User // ""')"
+    if [[ -n "$UID0" && "$UID0" != "root" && "$UID0" != "0:0" ]]; then
+      _t_ok "$c runs non-root ($UID0)"
+    else
+      _t_fail "$c runs as root (User='$UID0')"
+    fi
     docker exec "$c" test -S /var/run/docker.sock 2>/dev/null \
       && _t_fail "$c must not see docker socket" \
       || _t_ok "$c must not see docker socket"

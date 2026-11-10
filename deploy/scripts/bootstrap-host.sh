@@ -19,8 +19,14 @@ cd "$ROOT"
 [[ $EUID -eq 0 ]] || { echo "run as root on the instance (sudo)" >&2; exit 1; }
 command -v docker >/dev/null || { echo "docker missing — user_data should have installed it" >&2; exit 1; }
 
-PUBLIC_IP="$(curl -fsS --max-time 3 http://169.254.169.254/latest/meta-data/public-ipv4 || true)"
-[[ -n "$PUBLIC_IP" ]] || { echo "cannot discover public IP via IMDS" >&2; exit 1; }
+# IMDSv2 (the instance enforces http_tokens=required — a bare GET gets 403)
+IMDS_TOKEN="$(curl -fsS -X PUT --max-time 3 \
+  -H "X-aws-ec2-metadata-token-ttl-seconds: 300" \
+  http://169.254.169.254/latest/api/token || true)"
+PUBLIC_IP="$(curl -fsS --max-time 3 \
+  -H "X-aws-ec2-metadata-token: ${IMDS_TOKEN:-none}" \
+  http://169.254.169.254/latest/meta-data/public-ipv4 || true)"
+[[ -n "$PUBLIC_IP" ]] || { echo "cannot discover public IP via IMDS (v2 token flow)" >&2; exit 1; }
 
 if [[ ! -f .env ]]; then
   cp .env.example .env
@@ -36,7 +42,7 @@ fi
 scripts/env-ensure.sh
 
 # build the workspace image on the host (registry deferred — ADR repo layout)
-docker build -t cloudcoding-workspace:dev workspace/images/development/
+docker build -t cloudcoding-workspace:dev -f workspace/images/development/Dockerfile workspace/
 
 # start platform in AWS mode
 docker compose -f docker-compose.yml -f deploy/compose/aws.yml up -d

@@ -50,7 +50,7 @@ destroy-data: ## WARNING: rm platform volumes (postgres, coder home)
 # --- workspace image ----------------------------------------------------------
 
 build-workspace: ## build the pinned workspace image (code-server + opencode)
-	@docker build -t cloudcoding-workspace:dev workspace/images/development/
+	@docker build -t cloudcoding-workspace:dev -f workspace/images/development/Dockerfile workspace/
 
 # --- tests ----------------------------------------------------------------------
 

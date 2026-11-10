@@ -33,7 +33,7 @@ trap cleanup EXIT
 echo "== auth: developer login works with operator-issued credentials =="
 TOK="$(curl -s -X POST "$CODER_API_URL/api/v2/users/login" -H "Content-Type: application/json" \
   -d "{\"email\":\"$DEMO_USER@example.invalid\",\"password\":\"$DEMO_PASS\"}" | jq -r '.session_token // empty')"
-assert_not_contains "$TOK" "" "developer session issued"
+assert_not_empty "$TOK" "developer session issued"
 
 echo "== auth: developer is NOT an owner =="
 ROLES="$(curl -s -H "Authorization: Bearer $TOK" "$CODER_API_URL/api/v2/users/me" | jq -c '[.roles[].name]')"

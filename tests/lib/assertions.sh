@@ -13,10 +13,15 @@ assert_eq() {  # <actual> <expected> <label>
   if [[ "$1" == "$2" ]]; then _t_ok "$3"; else _t_fail "$3 (expected '$2', got '$1')"; fi
 }
 assert_contains() {  # <haystack> <needle> <label>
+  if [[ -z "$2" ]]; then _t_fail "$3 (empty needle — invalid assertion)"; return; fi
   if [[ "$1" == *"$2"* ]]; then _t_ok "$3"; else _t_fail "$3 (missing '$2' in: ${1:0:200})"; fi
 }
 assert_not_contains() {  # <haystack> <needle> <label>
+  if [[ -z "$2" ]]; then _t_fail "$3 (empty needle — invalid assertion)"; return; fi
   if [[ "$1" != *"$2"* ]]; then _t_ok "$3"; else _t_fail "$3 (unexpectedly found '$2')"; fi
+}
+assert_not_empty() {  # <value> <label>
+  if [[ -n "$1" ]]; then _t_ok "$2"; else _t_fail "$2 (value is empty)"; fi
 }
 assert_file_exists() {
   if [[ -f "$1" ]]; then _t_ok "file exists: $1"; else _t_fail "file exists: $1"; fi

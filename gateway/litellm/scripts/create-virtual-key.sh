@@ -3,7 +3,7 @@
 # AI spend — docs/decisions/ADR-0004).
 #
 # Usage:
-#   scripts/litellm/create-virtual-key.sh <coder-username> [budget_usd] [rpm] [tpm]
+#   gateway/litellm/scripts/create-virtual-key.sh <coder-username> [budget_usd] [rpm] [tpm]
 #
 # Output: the generated key (sk-...) on stdout; everything else on stderr.
 # The caller decides where it goes (bootstrap writes demo key to a

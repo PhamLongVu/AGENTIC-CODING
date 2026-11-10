@@ -24,6 +24,7 @@ Anything claimed here must have a test result or artifact behind it.
 | 2026-11-10 | Workspace image builds: node:24.22.2-bookworm base + code-server 4.145.2 + opencode-ai 1.19.5 (code-server ≥4.100 requires node ≥24) | `docker build` exit 0 |
 | 2026-11-10 | Unit suite green (11 assertions) incl. compose parse, pin policy, template invariants, opencode.json sync rule | `make test-unit` |
 | 2026-11-10 | **Full codebase written** — repo restructured to plan §3 layout; compose stack, workspace image + template, gateway configs + key scripts, all scripts, infra modules, AWS compose override + host bootstrap + deployment validation, 4 test suites, 5 CI workflows, full docs set, root tracking files | this commit (everything below is in it) |
+| 2026-11-10 | **Static review pass** (independent code-review agent, static analysis only — no commands run): 10 defects found and fixed pre-first-run, incl. two suites that could structurally never pass (empty-needle assertions; template push aborting before its create fallback), a dead-on-arrival AWS bootstrap (IMDSv1 under IMDSv2-required), workspace config seeding via `dirname $0` (file never staged), a vacuous port-4000 exposure check, a restore race, IAM lockout (no SSH key, no SSM). Full list: KNOWN_ISSUES.md §"Fixed by the static review pass" | commit after d869012 |
 
 ## In progress
 

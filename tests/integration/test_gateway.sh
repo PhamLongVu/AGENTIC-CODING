@@ -12,7 +12,9 @@ KEY_ALIAS="itest-$(date +%s)"
 TMP_KEYS=()
 
 new_key() {  # new_key <budget> <rpm> [tpm] -> prints key
-  gateway/litellm/scripts/create-virtual-key.sh "$KEY_ALIAS-$1" "$1" "$2" "${3:-100000}"
+  # Alias encodes budget AND rpm — two keys with equal budgets but different
+  # rpm limits must not collide on the alias (usage assertions select by it).
+  gateway/litellm/scripts/create-virtual-key.sh "$KEY_ALIAS-b$1-r$2" "$1" "$2" "${3:-100000}"
 }
 
 cleanup() {
@@ -68,7 +70,7 @@ assert_contains "$((limited > 0 ? 1 : 0))" "1" "rpm=1 key hits 429 under burst (
 
 echo "== gateway: usage tracking =="
 INFO="$(curl -s "$LITELLM_BASE_URL/key/list" -H "Authorization: Bearer $LITELLM_MASTER_KEY" \
-  | jq -c --arg a "$KEY_ALIAS-20" '.keys[]? | select(.key_alias==$a)')"
+  | jq -c --arg a "$KEY_ALIAS-b20-r30" '.keys[]? | select(.key_alias==$a)')"
 assert_contains "$INFO" '"max_budget":20' "key records configured budget"
 assert_contains "$INFO" '"rpm":30' "key records configured rpm"
 SPEND="$(echo "$INFO" | jq -r '.spend // 0')"

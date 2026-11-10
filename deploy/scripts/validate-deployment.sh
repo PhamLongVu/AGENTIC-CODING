@@ -37,8 +37,10 @@ assert_contains "$ROLE" "instance-role" "host-net LiteLLM can assume instance ro
 
 echo "== validate: SECURITY — port 4000 not exposed externally =="
 # from the instance, via its PUBLIC address (hairpin through the SG)
-PUBLIC_IP="${CODER_ACCESS_URL//*:/}"
-PUBLIC_IP="${PUBLIC_IP%%:*}"
+# strip the scheme first: ${URL//*:/} would strip through the LAST colon
+# (the port) and test against http://7080:4000 — a DNS error, not a probe.
+HOSTPORT="${CODER_ACCESS_URL#*://}"
+PUBLIC_IP="${HOSTPORT%%:*}"
 code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 4 "http://$PUBLIC_IP:4000/health/liveliness" || echo blocked)"
 assert_contains "$code" "blocked" "gateway port 4000 unreachable via public IP"
 
@@ -49,8 +51,10 @@ if [[ -n "$KEY" ]]; then
   BODY="$(curl -s --max-time 30 http://127.0.0.1:4000/v1/chat/completions \
     -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
     -d "{\"model\":\"${BEDROCK_MODEL_ANTHROPIC:-anthropic.claude-3-5-sonnet-20241022-v2:0}\",\"messages\":[{\"role\":\"user\",\"content\":\"say ok\"}]}")"
-  assert_contains "$(echo "$BODY" | jq -r '.choices[0].message.content // .error.message // empty' | head -c 200)" \
-    "error-free completion" "bedrock completion via gateway"
+  ERR="$(echo "$BODY" | jq -r '.error.message // empty' | head -c 200)"
+  CONTENT="$(echo "$BODY" | jq -r '.choices[0].message.content // empty' | head -c 200)"
+  assert_eq "$ERR" "" "bedrock response carries no error"
+  assert_not_empty "$CONTENT" "bedrock completion non-empty via gateway"
 else
   _t_ok "demo key absent — skipping real-model check (run make bootstrap)"
 fi

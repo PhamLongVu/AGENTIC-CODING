@@ -15,20 +15,13 @@ OPENCODE_BIN="$(command -v opencode)"
 mkdir -p "$HOME/projects" "$HOME/.cache"
 
 # Seed IDE defaults ONCE per volume (user edits afterwards are preserved).
+# Source: /opt/defaults/code-server-settings.json baked into the image
+# (single source of truth: workspace/code-server/config/default-settings.json;
+# the $comment key is stripped — it's repo documentation, not a setting).
 CS_SETTINGS="$HOME/.local/share/code-server/User/settings.json"
 if [[ ! -f "$CS_SETTINGS" ]]; then
   mkdir -p "$(dirname "$CS_SETTINGS")"
-  cat > "$CS_SETTINGS" <<'SETTINGS'
-{
-  "update.mode": "none",
-  "telemetry.enableTelemetry": false,
-  "telemetry.enableCrashReporter": false,
-  "extensions.autoCheckUpdates": false,
-  "files.autoSave": "onFocusChange",
-  "workbench.startupEditor": "none",
-  "terminal.integrated.defaultProfile.linux": "bash"
-}
-SETTINGS
+  jq 'del(."$comment")' /opt/defaults/code-server-settings.json > "$CS_SETTINGS"
 fi
 
 cd "$HOME/projects"

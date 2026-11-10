@@ -67,7 +67,7 @@ coder_wait_agent() {
   while :; do
     status="$(coder_workspace_json "$ws" | jq -r '[.latest_build.resources[].agents[]?.status][0] // "none"')"
     [[ "$status" == "connected" ]] && return 0
-    [[ "$status" == "disconnected" ]] || true  # keep polling through lifecycle
+    # keep polling through lifecycle states (starting, disconnected, ...)
     sleep 3; waited=$((waited + 3))
     (( waited >= max )) && return 1
   done

@@ -16,7 +16,7 @@ trap cleanup EXIT
 
 echo "== e2e: template present =="
 TPL_ID="$(coder_template_id docker-standard)"
-assert_not_contains "$TPL_ID" "" "docker-standard template exists (bootstrap pushes it)"
+assert_not_empty "$TPL_ID" "docker-standard template exists (bootstrap pushes it)"
 [[ -z "$TPL_ID" ]] && finish_suite "test_e2e_workspace (skipped: no template)"
 
 echo "== e2e: create workspace '$WS' (profile small, 45m ttl) =="

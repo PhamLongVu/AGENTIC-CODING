@@ -8,13 +8,16 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+# Postgres superuser name comes from .env (kept in sync with the compose stack).
+PG_ADMIN="$(grep -E '^POSTGRES_USER=' .env | head -1 | cut -d= -f2-)"
+PG_ADMIN="${PG_ADMIN:-platform_admin}"
 DEST="backups/$STAMP"
 mkdir -p "$DEST"
 trap 'rmdir "$DEST" 2>/dev/null || true' ERR
 
 echo "backup: databases -> $DEST"
 for db in coder litellm; do
-  docker compose exec -T postgres pg_dump -U platform_admin -d "$db" | gzip > "$DEST/$db.sql.gz"
+  docker compose exec -T postgres pg_dump -U "$PG_ADMIN" -d "$db" | gzip > "$DEST/$db.sql.gz"
 done
 
 echo "backup: workspace volumes -> $DEST"

@@ -14,7 +14,7 @@ trap cleanup EXIT
 
 echo "== workspace image: build (skipped if already built) =="
 if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
-  assert_cmd "docker build $IMAGE" docker build -t "$IMAGE" workspace/images/development/
+  assert_cmd "docker build $IMAGE" docker build -t "$IMAGE" -f workspace/images/development/Dockerfile workspace/
 else
   _t_ok "image already present (make build-workspace rebuilds)"
 fi
@@ -60,9 +60,14 @@ CWD_CS="$(docker exec "$CTR" bash -c "readlink /proc/\$(pgrep -f '[c]ode-server'
 assert_eq "$CWD_CS" "/home/coder/projects" "code-server cwd is the shared project dir"
 
 echo "== workspace image: resource limits are enforceable =="
-# 384 MiB memory cap; python asks for 1 GiB => the kernel must OOM-kill it
-OOM_CODE="$(docker run --rm --memory 384m "$IMAGE" bash -c \
-  'python3 -c "x=bytearray(1024*1024*1024)"; echo survived' 2>/dev/null || echo "killed")"
-assert_contains "$OOM_CODE" "killed" "memory limit enforced (allocation killed)"
+# 384 MiB memory cap; node (guaranteed present in the image) keeps allocating
+# until the kernel OOM-kills the process => docker reports exit code 137.
+# Exact-code match matters: a blanket `|| echo killed` would also swallow
+# 127 (binary missing) and pass vacuously. (No `set -e` in this suite, so
+# the failing docker run does not abort — $? is captured directly.)
+docker run --rm --memory 384m "$IMAGE" \
+  node -e 'const b=[];for(;;){b.push(Buffer.alloc(64*1024*1024))}' >/dev/null 2>&1
+OOM_RC=$?
+assert_eq "$OOM_RC" "137" "memory limit enforced (kernel OOM-kill, exit 137)"
 
 finish_suite "test_workspace_image"

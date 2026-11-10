@@ -10,8 +10,18 @@
 set -euo pipefail
 
 : "${LITELLM_BASE_URL:?LITELLM_BASE_URL must point at the LiteLLM gateway}"
-CONFIG_SRC="${1:-$(dirname "$0")/../config/opencode.json}"
 CONFIG_DST="$HOME/.config/opencode/opencode.json"
+
+# Template source, in order: explicit arg → baked image default → repo copy.
+# (Inside a workspace only the baked copy exists; the repo copy is for
+# running this tool from a checkout.)
+CONFIG_SRC="${1:-}"
+if [[ -z "$CONFIG_SRC" ]]; then
+  for cand in /opt/defaults/opencode.json "$(dirname "$0")/../config/opencode.json"; do
+    if [[ -f "$cand" ]]; then CONFIG_SRC="$cand"; break; fi
+  done
+fi
+[[ -n "$CONFIG_SRC" && -f "$CONFIG_SRC" ]] || { echo "configure-opencode: no opencode.json template found (tried /opt/defaults and repo sibling)" >&2; exit 1; }
 
 if [[ -f "$CONFIG_DST" ]]; then
   echo "configure-opencode: $CONFIG_DST exists — leaving user config untouched"
