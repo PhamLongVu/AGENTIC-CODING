@@ -1,5 +1,9 @@
 # Architecture — MVP (single-instance, Docker Compose)
 
+> Editable diagram: [`platform-overview.excalidraw`](platform-overview.excalidraw)
+> (open at [excalidraw.com](https://excalidraw.com)) — same topology as this
+> document.
+
 Scope: the MVP described in `CONFIGURATION_BASELINE.md`. The original plan's
 EKS/Kubernetes architecture remains documented in `PROJECT_EXECUTION_PLAN.md`
 as the growth path; it is **not** built here.

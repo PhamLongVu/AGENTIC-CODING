@@ -52,7 +52,7 @@ workspace from the `docker-standard` template (parameter
 | [DECISIONS.md](DECISIONS.md) | ADR index + decisions at a glance |
 | [KNOWN_ISSUES.md](KNOWN_ISSUES.md) | Honest limitations + expected first-run issues |
 | [DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md) | **NOT DEPLOYED** — gate to any deployment |
-| [docs/architecture/overview.md](docs/architecture/overview.md) | MVP system design, flows, networks |
+| [docs/architecture/overview.md](docs/architecture/overview.md) · [platform-overview.excalidraw](docs/architecture/platform-overview.excalidraw) | MVP system design, flows, networks (+ editable diagram) |
 | [docs/architecture/security-model.md](docs/architecture/security-model.md) | Threat model, controls, known limitations |
 | [docs/architecture/workspace-lifecycle.md](docs/architecture/workspace-lifecycle.md) | Create → run → autostop → start → delete |
 | [docs/architecture/aws-network.md](docs/architecture/aws-network.md) | VPC/SG/IMDS layout (AWS mode) |
