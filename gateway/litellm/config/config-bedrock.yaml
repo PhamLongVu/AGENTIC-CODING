@@ -4,7 +4,7 @@
 # Selected by AI_PROVIDER_MODE=bedrock in .env (docs/decisions/ADR-0004).
 # Credentials: NONE in this file. LiteLLM authenticates to Bedrock via the
 # EC2 instance profile (IMDS) — the litellm service runs on the host network
-# in AWS mode (deploy/docker-compose.aws.yml) because IMDSv2 hop limit 1
+# in AWS mode (deploy/compose/aws.yml) because IMDSv2 hop limit 1
 # blocks container networks. No static AWS keys exist anywhere in this stack.
 # =============================================================================
 

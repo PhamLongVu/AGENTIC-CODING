@@ -56,7 +56,7 @@ account/resources:
   (never to humans),
 - SSM Session Manager (optional) instead of SSH key distribution.
 
-Least-privilege statement documents are in `infra/terraform/iam-policies.md`.
+Least-privilege statements live inline in `infra/terraform/modules/iam/main.tf`.
 
 ## 4. Security implications (pre-deployment disclosure)
 
@@ -65,7 +65,8 @@ Least-privilege statement documents are in `infra/terraform/iam-policies.md`.
    traffic (including login) is unencrypted on the wire. Accepted for POC only.
 2. The EC2 instance profile carries Bedrock invoke rights — confined to
    LiteLLM by IMDS hop limit 1 (all other containers are bridge-networked and
-   metadata-blocked). Verified by `tests/aws/test_imds.sh` after deploy.
+   metadata-blocked). Verified by `deploy/scripts/validate-deployment.sh`
+   after deploy (IMDS probe from a bridge container must fail).
 3. SSH exposed to `admin_cidr_ipv4` only; key-based.
 4. `.env` on the instance holds platform secrets (mode 600 root). Backup
    procedures exclude it from unencrypted storage.
@@ -74,21 +75,28 @@ Least-privilege statement documents are in `infra/terraform/iam-policies.md`.
 
 ```bash
 # 1. From an operator machine with IAM Identity Center credentials:
-cd infra/terraform && terraform init && terraform plan -out poc.tfplan
+make aws-plan        # = terraform init -backend=false + plan (environments/dev)
+cd infra/terraform/environments/dev && terraform plan -out poc.tfplan
 # 2. Review plan; confirm 0 paid resources beyond those approved above.
-terraform apply poc.tfplan
-# 3. Configure the host (prints from Terraform outputs):
-scripts/aws/bootstrap-host.sh   # installs docker, copies repo, writes .env
-# 4. Bring up the platform:
-make up deploy-target=aws bootstrap-coder
-# 5. Validate: scripts/aws/validate-deployment.sh  (health, IMDS block, ports)
+terraform apply poc.tfplan        # ONLY after owner approval (TASKS.md 3.5)
+# 3. On the instance (SSH, admin CIDR) — does everything else:
+deploy/scripts/bootstrap-host.sh  # writes .env (bedrock mode + secrets),
+                                  # builds workspace image, brings the stack
+                                  # up with deploy/compose/aws.yml override,
+                                  # bootstraps admin + template + demo key
+# 4. Still on the instance — prove the security posture:
+deploy/scripts/validate-deployment.sh   # health, IMDS block, ports, opt-in
+                                        # bedrock round-trip
 ```
+
+No make target performs any of the above: `make aws-bootstrap`
+intentionally exits with a pointer here.
 
 ## 6. Rollback / cleanup
 
 - Full teardown: `terraform destroy` — deletes the instance, volumes and IAM
   role. **Destructive: destroys all workspace data.** Requires owner approval.
-- Partial: `scripts/aws/instance-stop.sh` stops billing for compute (EBS still
-  bills) while keeping state.
-- Workspace data export before teardown: `scripts/backup.sh all` → tarballs on
-  operator machine.
+- Partial: `deploy/scripts/instance-stop.sh stop` stops billing for compute
+  (EBS still bills) while keeping state; `… start` brings it back.
+- Workspace data export before teardown: `make backup` → copy `backups/`
+  off-host first (backup-restore.md).

@@ -28,7 +28,7 @@ A POC-grade OIDC setup requires a domain, TLS, and an IdP tenant — the
 baseline explicitly says "temporary endpoint, no custom domain". Built-in
 accounts give the same isolation and audit properties with zero external
 dependencies. Passwords are transmitted over the SG-restricted HTTP endpoint
-(documented limitation, SECURITY.md §5.1) and rotated at first login.
+(documented limitation, docs/architecture/security-model.md §5) and rotated at first login.
 
 ## Consequences
 

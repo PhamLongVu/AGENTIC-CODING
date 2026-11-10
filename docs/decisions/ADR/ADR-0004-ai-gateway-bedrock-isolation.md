@@ -15,7 +15,7 @@ master key.
 2. Each developer receives a **virtual key** (LiteLLM) with:
    monthly budget (`LITELLM_DEFAULT_USER_BUDGET`), RPM/TPM limits, and per-key
    usage tracking. Keys are issued by the operator via
-   `services/litellm/scripts/create-virtual-key.sh` and stored only in the
+   `gateway/litellm/scripts/create-virtual-key.sh` and stored only in the
    LiteLLM database.
 3. Workspaces receive exactly two AI-related env vars:
    `OPENAI_API_BASE=http://host.docker.internal:4000/v1` and

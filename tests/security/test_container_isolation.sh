@@ -41,6 +41,14 @@ else
     docker exec "$c" test -S /var/run/docker.sock 2>/dev/null \
       && _t_fail "$c must not see docker socket" \
       || _t_ok "$c must not see docker socket"
+    # no platform/credential secrets in workspace env (ADR-0004):
+    WS_ENV="$(docker inspect "$c" | jq -r '.[0].Config.Env | join("\n")')"
+    assert_not_contains "$WS_ENV" "LITELLM_MASTER_KEY" \
+      "$c env must not contain the gateway master key"
+    assert_not_contains "$WS_ENV" "AWS_ACCESS_KEY_ID" \
+      "$c env must not contain AWS credentials"
+    assert_not_contains "$WS_ENV" "AWS_SESSION_TOKEN" \
+      "$c env must not contain AWS session tokens"
   done
 fi
 

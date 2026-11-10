@@ -115,7 +115,7 @@ workspace container (non-root user "coder", uid 1000)
 
 Both tools operate on the same `/home/coder` filesystem — the shared-project
 requirement from the original plan is satisfied by construction, and verified by
-integration tests (`tests/local/`).
+integration tests (`tests/integration/`).
 
 ## 5. Networks and ports
 
@@ -151,7 +151,7 @@ delete (explicit confirmation; volume destroyed).
 - Remaining budget on `m6a.2xlarge`: ~6 vCPU / ~28 GiB → 5×Small (5 vCPU/10 GiB)
   fits; 2–3×Medium fits; 5×Medium does **not** fit. Profile mix is enforced
   operationally (default profile Small) and measured in Phase 4.
-- Cost model and duty-cycle assumptions: `DEPLOYMENT.md` §Cost.
+- Cost model and duty-cycle assumptions: `docs/operations/deployment.md` §2.
 
 ## 8. What is deliberately NOT here
 

@@ -88,7 +88,7 @@ AWS administrator identity is **never** reused as developer platform identity.
 - Workspaces hold **only** a LiteLLM **virtual key** (per developer, budgeted,
   rate-limited, revocable). The LiteLLM master key never enters a workspace.
 - Only the LiteLLM service can obtain Bedrock credentials (instance profile,
-  host network + IMDS hop limit 1). See ADR-0004 and `SECURITY.md`.
+  host network + IMDS hop limit 1). See ADR-0004 and `docs/architecture/security-model.md`.
 - Per-developer usage and spend are tracked by LiteLLM (keyed on virtual keys).
 
 ## 8. Local development contract
@@ -97,7 +97,7 @@ AWS administrator identity is **never** reused as developer platform identity.
   PostgreSQL, LiteLLM (mock provider), Coder, and real workspaces.
 - Mode switch: `AI_PROVIDER_MODE=mock|bedrock` selects the LiteLLM model config.
 - Local tests never touch AWS. Bedrock integration tests are opt-in
-  (`tests/aws/`, require deployed AWS POC + credentials).
+  (opt-in steps in `deploy/scripts/validate-deployment.sh`, require deployed AWS POC).
 
 ## 9. Change control
 

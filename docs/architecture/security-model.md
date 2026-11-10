@@ -44,18 +44,20 @@ EC2 instance profile role "cloud-coding-litellm"
   container (including all workspaces) is on bridge networks and blocked by
   `HttpTokens=required` + `HttpPutResponseHopLimit=1` (set in Terraform).
 - Defense in depth: workspace image additionally ships an iptables-free
-  guard — no AWS CLI, no docker CLI, and a shell profile warning against
-  IMDS probing; tests assert `169.254.169.254` is unreachable from a
-  workspace container (`tests/local/`).
+  guard — no AWS CLI, no docker CLI. On a local dev laptop there is no IMDS
+  at all; the on-host proof that `169.254.169.254` is unreachable from
+  bridge containers runs on the EC2 instance via
+  `deploy/scripts/validate-deployment.sh` (AWS mode only — cannot be
+  simulated locally).
 
 ## 4. Workspace hardening
 
-- Image runs everything as `coder` (uid 1000); no sudo (removed from the
-  image); no setuid escalation paths beyond defaults.
+- Image runs everything as `coder` (uid 1000); sudo is never installed;
+  setuid binaries are asserted absent by test.
 - Template enforces: `privileged=false`, `capabilities.drop=[ALL]`,
-  `security_opts=["no-new-privileges:true"]`, `pids_limit`, CPU/memory limits,
-  read-only *not* forced (dev toolchains write too much; documented trade-off),
-  tmpfs on `/tmp`.
+  `security_opts=["no-new-privileges:true"]`, `pids_limit`, CPU/memory limits;
+  read-only rootfs *not* forced (dev toolchains write too much; documented
+  trade-off).
 - One docker network per workspace → workspaces cannot address each other.
 - Workspace egress allowed (git hosts, package registries) — that is a product
   requirement; isolation is ingress- and peer-focused, as in the original plan.
@@ -70,8 +72,9 @@ EC2 instance profile role "cloud-coding-litellm"
    this MVP serves a trusted team, not adversaries.
 3. **Single host**: no workload placement isolation, one noisy neighbor can
    degrade others; resource limits bound (not eliminate) this.
-4. **LiteLLM admin UI** reachable only from the host (port 4000 host-internal);
-   operator access via SSH tunnel.
+4. **LiteLLM admin UI**: AWS mode — host network + SG (4000 not open), so
+   reachable only from the instance itself (operator via SSH tunnel); local
+   mode — published on the dev machine only, no AWS behind it (mock).
 5. **Coder server holds docker.sock**: a Coder-server RCE equals host RCE.
    Coder is pinned and not internet-exposed beyond :7080 with SG allowlist.
 6. **Prompt injection / malicious repos**: contained, not prevented —
@@ -81,7 +84,7 @@ EC2 instance profile role "cloud-coding-litellm"
 
 | Secret | Storage | Rotation |
 |---|---|---|
-| `.env` (all platform secrets) | Instance file, mode 600, root-owned; root dir not in Git | on demand; `make rotate-secrets` documented |
+| `.env` (all platform secrets) | Instance file, mode 600, root-owned; never in Git | on demand — operator regenerates via `scripts/gen-secrets.sh` against a fresh `.env`, then restarts dependent services |
 | LiteLLM master key | `.env` → LiteLLM container env | rotate + update virtual keys runbook |
 | LiteLLM salt | `.env` | rotating invalidates stored creds — plan carefully |
 | Developer virtual keys | LiteLLM DB; injected per-workspace via template param | revocable per user from LiteLLM |
@@ -92,11 +95,13 @@ EC2 instance profile role "cloud-coding-litellm"
 
 | Test | Where | Status |
 |---|---|---|
-| Workspace image has no docker CLI / socket path | `tests/local/test_workspace_image.sh` | implemented |
-| Workspace container cannot reach 169.254.169.254 | `tests/local/test_workspace_isolation.sh` | implemented (local proxy assertion) |
-| Two workspaces cannot address each other | `tests/local/test_workspace_isolation.sh` | implemented |
-| Invalid LiteLLM key rejected | `tests/local/test_litellm.sh` | implemented |
-| Master key absent from workspace env | `tests/local/test_litellm.sh` | implemented |
-| Workspace runs as non-root | `tests/local/test_workspace_image.sh` | implemented |
-| Postgres not reachable from workspace network | `tests/local/test_workspace_isolation.sh` | implemented |
-| IMDS hop-limit=1 asserted in Terraform | `infra/terraform` + `tests/aws/` | planned (Phase 3) |
+| Workspace image has no docker CLI / socket path | `tests/integration/test_workspace_image.sh` | written (verification pass pending) |
+| Live workspace container mounts no docker.sock | `tests/security/test_container_isolation.sh` | written (verification pass pending) |
+| 169.254.169.254 unreachable from bridge containers | `deploy/scripts/validate-deployment.sh` (on-host, AWS mode) | written; opt-in, runs only after owner-approved deploy |
+| IMDS hop-limit=1 asserted in Terraform | `infra/terraform/modules/ec2/main.tf` + `tests/infrastructure/run.sh` | written (validate runs locally; no apply ever without approval) |
+| Two workspaces cannot address each other | `tests/integration/test_isolation.sh` | written (verification pass pending) |
+| Invalid/revoked LiteLLM key rejected (401) | `tests/security/test_gateway_hardening.sh` | written (manual path verified 2026-11-10) |
+| Virtual key cannot admin the gateway | `tests/security/test_gateway_hardening.sh` | written (verification pass pending) |
+| Master key / AWS creds absent from workspace env | `tests/security/test_container_isolation.sh` | written (verification pass pending) |
+| Workspace runs as non-root | `tests/integration/test_workspace_image.sh` | written (manual check passed 2026-11-10) |
+| Postgres not reachable from workspace network | `tests/integration/test_isolation.sh` | written (verification pass pending) |

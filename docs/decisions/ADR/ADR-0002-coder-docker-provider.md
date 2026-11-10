@@ -41,4 +41,4 @@ The Coder server container is the **only** container allowed to touch
   rule: do not fork Coder).
 - ⚠️ Coder server compromise = host compromise via the socket; mitigated by
   pinning the image, HTTP-only POC endpoint being SG-restricted, and no
-  untrusted signups (see SECURITY.md §5.5).
+  untrusted signups (see docs/architecture/security-model.md §5).

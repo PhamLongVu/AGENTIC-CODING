@@ -10,7 +10,7 @@ yet the full workflow (OpenCode → gateway → response) must be testable.
 ## Decision
 
 - LiteLLM's built-in **`mock_response`** model config powers a `mock/` model
-  family in `services/litellm/config.mock.yaml`: every chat completion returns
+  family in `gateway/litellm/config/config-mock.yaml`: every chat completion returns
   a deterministic string, offline, with no API keys.
 - `AI_PROVIDER_MODE=mock|bedrock` in `.env` selects which LiteLLM config file
   is mounted (compose interpolation). Default: `mock`.
@@ -20,7 +20,7 @@ yet the full workflow (OpenCode → gateway → response) must be testable.
   check → budget check → response) locally.
 - Virtual keys work in mock mode exactly as in Bedrock mode (they are gateway
   features), so auth/budget/usage tests run locally.
-- Bedrock-specific tests (`tests/aws/`) are separate and opt-in; they are the
+- Bedrock-specific tests (in `deploy/scripts/validate-deployment.sh`) are separate and opt-in; they are the
   only tests that require deployed AWS infrastructure.
 
 ## Consequences

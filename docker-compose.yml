@@ -2,15 +2,15 @@
 # Cloud Coding Platform — platform stack (local dev AND AWS POC)
 # =============================================================================
 # The SAME file serves local development and the AWS POC instance; environment
-# differences live ONLY in deploy/docker-compose.aws.yml (overrides).
+# differences live ONLY in deploy/compose/aws.yml (overrides).
 #
 # Services: postgres (platform metadata), litellm (AI gateway, DB mode),
 # coder (workspace control plane). Workspace containers themselves are NOT
 # defined here — the Coder provisioner creates them per-workspace via the
-# docker socket mounted into the coder service ONLY (docs/SECURITY.md).
+# docker socket mounted into the coder service ONLY (docs/architecture/security-model.md).
 #
 # Port bindings (0.0.0.0 so workspace containers can reach the host through
-# host-gateway; see docs/ARCHITECTURE.md §networking):
+# host-gateway; see docs/architecture/overview.md §networking):
 #   7080  Coder UI/API        — developer browsers + workspace agents
 #   4000  LiteLLM gateway API — workspaces only (never exposed on AWS: SG blocks)
 # Restrict external access with the host firewall / security group.
