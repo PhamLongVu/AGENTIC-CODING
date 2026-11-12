@@ -18,7 +18,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = "~> 2.36"
+      version = "~> 2.20"
     }
     docker = {
       source  = "kreuzwerker/docker"
@@ -35,39 +35,63 @@ variable "docker_image" {
   description = "Workspace image (built from workspace/images/development)"
 }
 
-variable "profile" {
-  type        = string
-  default     = "small"
-  description = "Workspace size (docs/architecture/overview.md §profiles)"
-
-  validation {
-    condition     = contains(["small", "medium", "large"], var.profile)
-    error_message = "profile must be small, medium or large."
-  }
-}
-
 variable "litellm_base_url" {
   type        = string
   default     = "http://host.docker.internal:4000/v1"
   description = "AI gateway endpoint as seen from inside workspaces"
 }
 
-variable "litellm_virtual_key" {
-  type        = string
-  sensitive   = true
-  description = "Per-developer LiteLLM virtual key (sk-...). Issued by the platform operator via gateway/litellm/scripts/create-virtual-key.sh. NOT the master key."
+# Rich parameters (provider 2.x: DATA blocks). Values are read at build time
+# via data.coder_parameter.<name>.value — a same-named `variable` does NOT
+# receive the parameter value (verified the hard way: env came up empty).
+data "coder_parameter" "litellm_virtual_key" {
+  name         = "litellm_virtual_key"
+  display_name = "LiteLLM virtual key"
+  type         = "string"
+  mutable      = false
+  description  = "Your personal AI gateway key (sk-...). Ask the operator if you don't have one. NEVER the master key."
+  validation {
+    # empty is tolerated so `templates create`'s import-provision dry-run
+    # passes (no parameter default yet); the create-workspace form still
+    # requires input, and a wrong key is rejected by the gateway (401).
+    regex = "^$|^sk-[a-zA-Z0-9_-]{10,}$"
+    error = "Must look like a virtual key (sk-…). Ask the operator."
+  }
+}
+
+data "coder_parameter" "profile" {
+  name         = "profile"
+  display_name = "Workspace profile"
+  type         = "string"
+  default      = "small"
+  mutable      = false
+  description  = "Resource envelope: small 1CPU/2GiB · medium 2CPU/4GiB · large 4CPU/8GiB."
+  option {
+    name  = "small"
+    value = "small"
+  }
+  option {
+    name  = "medium"
+    value = "medium"
+  }
+  option {
+    name  = "large"
+    value = "large"
+  }
 }
 
 locals {
   profile_resources = {
-    # cpu: whole vCPUs (nano_cpus), memory in MiB, pids: process cap
-    small  = { cpu = 1, memory = 2048, pids = 512 }
-    medium = { cpu = 2, memory = 4096, pids = 1024 }
-    large  = { cpu = 4, memory = 8192, pids = 2048 }
+    # cpu: whole vCPUs, memory in MiB. (No pids cap: the kreuzwerker/docker
+    # provider does not expose PidsLimit — docs/architecture/overview.md.)
+    small  = { cpu = 1, memory = 2048 }
+    medium = { cpu = 2, memory = 4096 }
+    large  = { cpu = 4, memory = 8192 }
   }
-  resources   = local.profile_resources[var.profile]
-  owner_slug  = lower(replace(data.coder_workspace_owner.name, "/[^a-zA-Z0-9_-]/", "-"))
-  ws_slug     = lower(replace(data.coder_workspace.name, "/[^a-zA-Z0-9_-]/", "-"))
+  # read the parameter VALUE, not a same-named variable (see note above)
+  resources   = local.profile_resources[data.coder_parameter.profile.value]
+  owner_slug  = lower(replace(data.coder_workspace_owner.owner.name, "/[^a-zA-Z0-9_-]/", "-"))
+  ws_slug     = lower(replace(data.coder_workspace.ws.name, "/[^a-zA-Z0-9_-]/", "-"))
   volume_name = "coder-${local.owner_slug}-${local.ws_slug}-home"
 }
 
@@ -77,34 +101,21 @@ data "coder_workspace_owner" "owner" {}
 # --- agent + apps ---------------------------------------------------------------
 
 resource "coder_agent" "main" {
-  os                     = "linux"
-  arch                   = "amd64"
-  startup_script         = "${path.module}/startup_script.sh"
-  startup_script_timeout = 300
+  os   = "linux"
+  arch = "amd64"
+  # startup_script takes the script CONTENT — file() reads it from the
+  # bundled template dir (a bare path string gets executed as a command:
+  # "./startup_script.sh: No such file or directory").
+  startup_script = file("${path.module}/startup_script.sh")
 
-  env {
-    key   = "LITELLM_BASE_URL"
-    value = var.litellm_base_url
-  }
-  env {
-    key   = "OPENCODE_PROVIDER_API_KEY"
-    value = var.litellm_virtual_key
-  }
-  env {
-    key   = "GIT_AUTHOR_NAME"
-    value = data.coder_workspace_owner.name
-  }
-  env {
-    key   = "GIT_COMMITTER_NAME"
-    value = data.coder_workspace_owner.name
-  }
-  env {
-    key   = "GIT_AUTHOR_EMAIL"
-    value = data.coder_workspace_owner.email
-  }
-  env {
-    key   = "GIT_COMMITTER_EMAIL"
-    value = data.coder_workspace_owner.email
+  # provider 2.x: env is a map argument, not repeated blocks
+  env = {
+    LITELLM_BASE_URL          = var.litellm_base_url
+    OPENCODE_PROVIDER_API_KEY = data.coder_parameter.litellm_virtual_key.value
+    GIT_AUTHOR_NAME           = data.coder_workspace_owner.owner.name
+    GIT_COMMITTER_NAME        = data.coder_workspace_owner.owner.name
+    GIT_AUTHOR_EMAIL          = data.coder_workspace_owner.owner.email
+    GIT_COMMITTER_EMAIL       = data.coder_workspace_owner.owner.email
   }
 
   metadata {
@@ -180,18 +191,18 @@ resource "docker_volume" "home" {
   }
   labels {
     label = "profile"
-    value = var.profile
+    value = data.coder_parameter.profile.value
   }
 }
 
 # --- the workspace container ------------------------------------------------------
 
 resource "docker_container" "workspace" {
-  count = data.coder_workspace.start_count # 0 when stopped => volume kept
+  count = data.coder_workspace.ws.start_count # 0 when stopped => volume kept
 
-  name    = "coder-ws-${local.owner_slug}-${local.ws_slug}"
-  image   = var.docker_image
-  hostname = lower(data.coder_workspace.name)
+  name     = "coder-ws-${local.owner_slug}-${local.ws_slug}"
+  image    = var.docker_image
+  hostname = lower(data.coder_workspace.ws.name)
 
   # Coder agent is the container entrypoint (PID 1); it runs the startup
   # script and supervises code-server + OpenCode.
@@ -203,9 +214,9 @@ resource "docker_container" "workspace" {
   }
 
   # one URL for browser AND container: host.docker.internal -> host gateway
-  extra_hosts {
-    host    = "host.docker.internal"
-    ip      = "host-gateway"
+  host {
+    host = "host.docker.internal"
+    ip   = "host-gateway"
   }
 
   volumes {
@@ -214,10 +225,11 @@ resource "docker_container" "workspace" {
     read_only      = false
   }
 
-  # profile resource limits (verified by tests/integration/test_workspace_image.sh)
-  nano_cpus  = local.resources.cpu * 1000000000
-  memory     = local.resources.memory * 1024 * 1024
-  pids_limit = local.resources.pids
+  # profile resource limits (verified by tests/integration/test_e2e_workspace.sh)
+  # NB: provider `memory` is in MB (it multiplies by 1024*1024 itself) — the
+  # profile map stores MiB, so pass it through unchanged.
+  cpus   = local.resources.cpu
+  memory = local.resources.memory
 
   # hardening
   capabilities {
@@ -226,19 +238,19 @@ resource "docker_container" "workspace" {
   security_opts = ["no-new-privileges:true"]
   # NOTE: no privileged, no docker.sock mount, no host paths, by design.
 
-  restart                = "on-failure"
-  destroy_grace_seconds  = 30
+  restart               = "on-failure"
+  destroy_grace_seconds = 30
 }
 
 # --- README shown in the Coder UI ---------------------------------------------------
 
 resource "coder_metadata" "workspace_info" {
   resource_id = docker_container.workspace[0].id
-  count       = data.coder_workspace.start_count
+  count       = data.coder_workspace.ws.start_count
 
   item {
     key   = "profile"
-    value = var.profile
+    value = data.coder_parameter.profile.value
   }
   item {
     key   = "cpu"

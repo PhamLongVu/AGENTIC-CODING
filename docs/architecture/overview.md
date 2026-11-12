@@ -98,7 +98,7 @@ OpenCode (workspace)
 ```text
 Developer clicks Create → Coder server runs the workspace template (Terraform,
 docker provider) → creates per-workspace docker network + named volume
-(persistent /home/coder) + workspace container with CPU/memory/pids limits
+(persistent /home/coder) + workspace container with CPU/memory limits
 → Coder agent boots → runs startup script (code-server + OpenCode) →
 apps report healthy in the dashboard.
 ```

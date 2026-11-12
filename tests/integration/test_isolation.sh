@@ -19,7 +19,7 @@ TPL_ID="$(coder_template_id docker-standard)"
 
 echo "== isolation: create two workspaces =="
 for ws in "$WSA" "$WSB"; do
-  coder_create_workspace "$ws" "$TPL_ID" "$(cat .demo-virtual-key)" 45 >/dev/null
+  coder_create_workspace "$ws" docker-standard "$(cat .demo-virtual-key)" 45 >/dev/null
   ST="$(coder_wait_workspace "$ws" running 420 || true)"
   assert_eq "$ST" "running" "$ws running"
 done

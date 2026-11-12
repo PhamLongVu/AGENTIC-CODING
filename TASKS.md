@@ -22,32 +22,29 @@ PROJECT_STATUS.md.
 | 0.7 | DEVELOPMENT.md, DEPLOYMENT.md (no deploy) | ☑ | `docs/operations/` |
 | 0.8 | Tasks + status ledger | ☑ | this file, PROJECT_STATUS.md |
 
-## Phase 1 — Local development environment  ◐ (verification pass pending)
+## Phase 1 — Local development environment  ☑ (verified 2026-11-13)
 
 | # | Task | Status | Acceptance criteria |
 |---|---|---|---|
-| 1.1 | docker-compose: postgres (2 DBs, 2 users) | ◐ → ☑ * | healthy; coder+litellm schemas created — **verified manually 2026-11-10**; re-prove in suite |
-| 1.2 | docker-compose: LiteLLM (DB mode, mock provider) | ◐ → ☑ * | `/health/liveliness` OK; mock completion via virtual key — **verified manually 2026-11-10**; suite green |
-| 1.3 | Workspace image (pinned, non-root, code-server + OpenCode) | ◐ → ☑ * | builds (exit 0 **2026-11-10**); suite asserts non-root, no docker CLI, services healthy |
-| 1.4 | LiteLLM virtual key script (budget/rpm) | ◐ → ☑ * | key issues, bad key 401, rpm 429 — **paths verified manually 2026-11-10**; budget exhaustion untestable in mock (KNOWN_ISSUES) |
-| 1.5 | Local integration tests: gateway | ◐ | `make test-integration` green |
-| 1.6 | Local integration tests: workspace image | ◐ | shared-file, non-root, no-docker-cli tests green |
-| 1.7 | Coder server in compose | ◐ → ☑ * | healthy + admin login — **verified manually 2026-11-10**; suite green |
+| 1.1 | docker-compose: postgres (2 DBs, 2 users) | ☑ | healthy; test_platform 9/9 (2026-11-13) |
+| 1.2 | docker-compose: LiteLLM (DB mode, mock provider) | ☑ | health + mock completion via virtual key — test_gateway 12/12 (2026-11-13) |
+| 1.3 | Workspace image (pinned, non-root, code-server + OpenCode) | ☑ | test_workspace_image 15/15 (2026-11-13); setuid stripped |
+| 1.4 | LiteLLM virtual key script (budget/rpm) | ☑ | key issues; bad key 401; rpm_limit 429 burst (LiteLLM 1.83 field names) |
+| 1.5 | Local integration tests: gateway | ☑ | test_gateway 12/12 (2026-11-13) |
+| 1.6 | Local integration tests: workspace image | ☑ | test_workspace_image 15/15 (2026-11-13) |
+| 1.7 | Coder server in compose | ☑ | healthy, admin login, template lifecycle — bootstrap green (2026-11-13) |
 
-\* manually verified before ruling R3 paused testing; the ☑-worthy evidence
-is the *suite* run, so these stay ◐ until `make test` is green.
-
-## Phase 2 — Core platform integration (developer workflow)  ◐
+## Phase 2 — Core platform integration (developer workflow)  ☑ (verified 2026-11-13)
 
 | # | Task | Status | Acceptance criteria |
 |---|---|---|---|
-| 2.1 | Coder docker template (volume, network, limits, apps) | ◐ | template uploads; workspace builds |
-| 2.2 | Workspace startup script (agent-supervised services) | ◐ | code-server + OpenCode apps report healthy |
-| 2.3 | OpenCode → LiteLLM provider config | ◐ | OpenCode in workspace completes a chat via mock model |
-| 2.4 | E2E: create user → workspace → apps reachable | ◐ | scripted test green |
-| 2.5 | Persistence test: stop/start keeps /home/coder | ◐ | scripted test green |
-| 2.6 | Isolation test: two workspaces mutually unreachable | ◐ | scripted test green |
-| 2.7 | Lifecycle: idle autostop configuration | ◐ | autostop visible on workspace (ttl 45m); manual stop keeps data |
+| 2.1 | Coder docker template (volume, network, limits, apps) | ☑ | template pushes; 7 workspace builds exercised today (probes + suites) |
+| 2.2 | Workspace startup script (agent-supervised services) | ☑ | apps report healthy through Coder (e2e + probes) |
+| 2.3 | OpenCode → LiteLLM provider config | ☑ | in-workspace curl → gateway → MOCK RESPONSE (e2e 16/16) |
+| 2.4 | E2E: create user → workspace → apps reachable | ☑ | test_e2e_workspace 16/16 (2026-11-13) |
+| 2.5 | Persistence test: stop/start keeps /home/coder | ☑ | test_persistence 8/8 (2026-11-13) |
+| 2.6 | Isolation test: two workspaces mutually unreachable | ☑ | test_isolation 10/10 (2026-11-13) |
+| 2.7 | Lifecycle: idle autostop configuration | ☑ | ttl 45m asserted (e2e); stop/start keeps volume (persistence) |
 
 ## Phase 3 — AWS POC deployment (PREPARE ONLY — approval gate before apply)
 
@@ -63,20 +60,21 @@ is the *suite* run, so these stay ◐ until `make test` is green.
 
 | # | Task | Status | Acceptance criteria |
 |---|---|---|---|
-| 4.1 | Multi-user isolation suite (local, real coder workspaces) | ◐ | A/B cross-access attempts all fail |
-| 4.2 | Resource limit verification (cpu/mem/pids enforcement) | ◐ | observed limits match profile |
-| 4.3 | Auth tests (bad login, no self-signup, app proxy auth) | ◐ | all rejected |
-| 4.4 | Gateway hardening (revocation, model allowlist, rpm) | ◐ | enforced in mock mode |
+| 4.1 | Multi-user isolation suite (local, real coder workspaces) | ☑ | test_isolation 10/10 (2026-11-13) |
+| 4.2 | Resource limit verification (cpu/mem enforcement; pids not supported by provider — KNOWN_ISSUES) | ☑ | NanoCpus/Memory asserted on live workspace (e2e, 2026-11-13) |
+| 4.3 | Auth tests (bad login, no self-signup, app proxy auth) | ☑ | test_auth 8/8 (2026-11-13) |
+| 4.4 | Gateway hardening (revocation, model allowlist, rpm) | ☑ | test_gateway_hardening 7/7 (2026-11-13) |
 | 4.5 | Cost measurement runbook + capacity table | ◐ runbook / ☐ measured numbers | runbook done (`docs/runbooks/cost-management.md`); **measured** table = Phase 4 execution |
 | 4.6 | Ops docs: onboarding/offboarding/recovery runbooks | ☑ | `docs/runbooks/` complete |
 | 4.7 | Independent security review | ⏸ | owner-assigned: fresh-eyes review pass per AGENTS.md §Review pass (Claude — owner ruling, no Codex) or an external human reviewer |
 
-## Next actions (verification pass — tomorrow, per R3)
+## Next actions (after the 2026-11-13 verification pass)
 
-1. `make up` → all healthy; `make bootstrap` → admin + template + demo key.
-2. `make build-workspace` (rebuild after any Dockerfile fix).
-3. `make test` (unit + infra + integration + security), fix bugs, re-run.
-4. Record results in PROJECT_STATUS.md test log; flip ◐ → ☑.
+1. ~~local verification pass~~ **done 2026-11-13** — all four suites green
+   (see PROJECT_STATUS.md test log); Phase 1/2 + 4.1–4.4 flipped ☑.
+2. AWS POC: walk `docs/operations/deployment.md` with the owner gate
+   (TASKS 3.5) before any `terraform apply`.
+3. 4.5 measured capacity numbers + 4.7 review pass remain open.
 5. Only then: discuss Phase 3 approval gate with owner (still no apply).
 
 ## Deferred (from original plan, with triggers)

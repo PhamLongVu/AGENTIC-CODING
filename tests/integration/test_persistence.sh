@@ -17,7 +17,7 @@ TPL_ID="$(coder_template_id docker-standard)"
 [[ -z "$TPL_ID" ]] && { echo "skip: template missing"; finish_suite "test_persistence (skipped)"; }
 
 echo "== persistence: create + write marker =="
-coder_create_workspace "$WS" "$TPL_ID" "$(cat .demo-virtual-key)" 45 >/dev/null
+coder_create_workspace "$WS" docker-standard "$(cat .demo-virtual-key)" 45 >/dev/null
 ST="$(coder_wait_workspace "$WS" running 420 || true)"
 assert_eq "$ST" "running" "workspace starts"
 
@@ -34,7 +34,7 @@ assert_eq "$ST" "stopped" "workspace stops cleanly"
 docker inspect "$CTR" >/dev/null 2>&1 \
   && _t_fail "container removed on stop" \
   || _t_ok "container removed on stop (volume kept)"
-VOL="coder-${CODER_ADMIN_USER,,}-$(echo "${WS//-/-}" | tr '[:upper:]' '[:lower:]')"
+VOL="coder-${CODER_ADMIN_USER,,}-${WS,,}-home"  # matches main.tf volume_name
 docker volume inspect "$VOL" >/dev/null 2>&1 \
   && _t_ok "home volume still exists ($VOL)" \
   || _t_fail "home volume still exists ($VOL)"

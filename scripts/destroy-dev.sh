@@ -8,15 +8,19 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+source "$ROOT/scripts/lib/deploy-log.sh"
+dlog_section "make destroy-dev (L=${1:-stack})"
 
 LEVEL="${1:-stack}"
 case "$LEVEL" in
   stack)
     docker compose down
+    dlog "compose down: removed platform containers + network (volumes KEPT)"
     echo "destroy-dev: stack down (all volumes kept)"
     ;;
   data)
     docker compose down -v
+    dlog "compose down -v: removed platform containers, network AND volumes (platform_pgdata, platform_coder_home); workspace volumes kept"
     echo "destroy-dev: platform metadata destroyed; workspace volumes kept"
     ;;
   workspaces)
@@ -25,9 +29,10 @@ case "$LEVEL" in
     [[ "$c" == "destroy workspaces" ]] || { echo "aborted"; exit 1; }
     docker compose down -v
     for vol in $(docker volume ls --format '{{.Name}}' | grep -E '^coder-.*-home$'); do
-      docker volume rm "$vol" >/dev/null && echo "  removed $vol"
+      docker volume rm "$vol" >/dev/null && echo "  removed $vol" && dlog "removed workspace volume $vol"
     done
     docker network ls --format '{{.Name}}' | grep -E '^ws-' | xargs -r docker network rm >/dev/null 2>&1 || true
+    dlog "removed per-workspace networks (^ws-*)"
     echo "destroy-dev: local environment fully reset"
     ;;
   *)

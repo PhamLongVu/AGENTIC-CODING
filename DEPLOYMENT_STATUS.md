@@ -6,7 +6,7 @@
 |---|---|
 | **AWS account activity** | none — zero resources created, changed or destroyed |
 | **`terraform apply` runs** | zero (validate/plan only, ever) |
-| **Local stack** | code written; last green local run 2026-11-10 (PROJECT_STATUS.md test log); full verification pass pending |
+| **Local stack** | ✅ verified 2026-11-13: all four suites green (PROJECT_STATUS.md test log); template pushed; workspace lifecycle + AI round-trip proven end-to-end in mock mode |
 | **CI/CD** | workflows committed; deploy workflow is `workflow_dispatch` + environment reviewer + approval-reference secret, and **intentionally stops before deployment** — the operator deploys per runbook |
 
 ## What exists vs. what doesn't

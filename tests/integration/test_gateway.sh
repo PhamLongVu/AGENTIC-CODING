@@ -49,7 +49,8 @@ assert_eq "$code" "401" "invalid virtual key rejected with 401"
 code="$(curl -s -o /dev/null -w '%{http_code}' "$LITELLM_BASE_URL/v1/chat/completions" \
   -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
   -d '{"model":"gpt-4o","messages":[{"role":"user","content":"hi"}]}')"
-assert_eq "$code" "400" "model not on key allowlist rejected"
+# LiteLLM 1.83 denies non-allowlisted models with 401 key_model_access_denied
+assert_eq "$code" "401" "model not on key allowlist rejected (401 key_model_access_denied)"
 
 echo "== gateway: virtual key CANNOT use admin API =="
 code="$(curl -s -o /dev/null -w '%{http_code}' "$LITELLM_BASE_URL/key/list" \
@@ -69,10 +70,12 @@ limited="$(printf '%s\n' "${codes[@]}" | grep -c '^429$' || true)"
 assert_contains "$((limited > 0 ? 1 : 0))" "1" "rpm=1 key hits 429 under burst (got: ${codes[*]})"
 
 echo "== gateway: usage tracking =="
-INFO="$(curl -s "$LITELLM_BASE_URL/key/list" -H "Authorization: Bearer $LITELLM_MASTER_KEY" \
-  | jq -c --arg a "$KEY_ALIAS-b20-r30" '.keys[]? | select(.key_alias==$a)')"
+# /key/list returns bare key strings in LiteLLM 1.83; per-key record is /key/info
+INFO="$(curl -s "$LITELLM_BASE_URL/key/info?key=$KEY" -H "Authorization: Bearer $LITELLM_MASTER_KEY" \
+  | jq -c '.info')"
+assert_contains "$INFO" '"key_alias":"'"$KEY_ALIAS"'-b20-r30"' "key record has configured alias"
 assert_contains "$INFO" '"max_budget":20' "key records configured budget"
-assert_contains "$INFO" '"rpm":30' "key records configured rpm"
+assert_contains "$INFO" '"rpm_limit":30' "key records configured rpm_limit"
 SPEND="$(echo "$INFO" | jq -r '.spend // 0')"
 assert_contains "$(awk -v s="$SPEND" 'BEGIN{print (s>=0)?1:0}')" "1" "spend field present and >= 0"
 

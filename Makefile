@@ -5,7 +5,7 @@ SHELL := /bin/bash
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down restart logs ps bootstrap build-workspace \
+.PHONY: help up down restart logs ps bootstrap build-workspace deploy-log \
         test test-unit test-integration test-security test-infra \
         terraform-validate gen-secrets dev-hosts-setup validate \
         deploy-dev destroy-dev backup restore destroy-data
@@ -26,6 +26,7 @@ dev-hosts-setup: ## add host.docker.internal -> 127.0.0.1 to /etc/hosts (sudo)
 up: ## start postgres + litellm + coder (local mode; requires .env)
 	@scripts/env-ensure.sh
 	@docker compose up -d
+	@ROOT=$(CURDIR) bash -c 'source scripts/lib/deploy-log.sh; dlog_section "make up"; dlog "docker compose up -d -> postgres, litellm, coder (+ network cloud-coding-platform_default)"; dlog_inventory'
 	@echo ""
 	@echo "stack starting. health:  make ps"
 	@echo "next:                   make bootstrap"
@@ -43,6 +44,7 @@ ps: ## service status incl. health
 
 bootstrap: ## admin user + workspace template + demo virtual key (idempotent)
 	@scripts/bootstrap.sh
+	@ROOT=$(CURDIR) bash -c 'source scripts/lib/deploy-log.sh; dlog "make bootstrap finished (details in its own section above)"'
 
 destroy-data: ## WARNING: rm platform volumes (postgres, coder home)
 	@scripts/destroy-dev.sh data
@@ -51,6 +53,10 @@ destroy-data: ## WARNING: rm platform volumes (postgres, coder home)
 
 build-workspace: ## build the pinned workspace image (code-server + opencode)
 	@docker build -t cloudcoding-workspace:dev -f workspace/images/development/Dockerfile workspace/
+	@ROOT=$(CURDIR) bash -c 'source scripts/lib/deploy-log.sh; dlog_section "make build-workspace"; dlog "built image cloudcoding-workspace:dev (context workspace/ -f workspace/images/development/Dockerfile)"; dlog_inventory'
+
+deploy-log: ## deploy history + live artifact inventory with cleanup commands
+	@bash scripts/lib/deploy-log.sh show
 
 # --- tests ----------------------------------------------------------------------
 

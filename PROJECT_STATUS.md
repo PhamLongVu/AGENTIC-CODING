@@ -46,15 +46,23 @@ here:
 | R3 | **Write-code-first, verify-later** (owner directive): the full codebase was written in one pass; builds/tests/deploys deferred to the next session. Everything not covered by the 2026-11-10 green runs above is *written but unverified* and must not be treated as done until its suite runs green. | owner: "code full đi đã … xong rồi build rồi fix bug sau" | first-run bugs (listed in KNOWN_ISSUES.md) surface in a batch instead of incrementally — accepted for schedule |
 | R4 | Repo follows plan §3 layout, but deferred components' directories (eks/, rds/, redis/, ecr/, helm/, kubernetes/, prod/, load tests, platform-api source) are **not created** — the plan's own rule ("create each directory when its implementation begins") + baseline kills those components. `platform-api/` exists as README-only (plan §3 marks it optional/deferred). | plan §3 + baseline reconciliation | none — directories appear when implementation begins |
 | R5 | No AWS resource is created, changed or destroyed at any point in this pass; `terraform apply` never executed; CI deploy workflow is owner-gated and intentionally stops before deployment (operator executes per runbook). | baseline rule #2 + owner gate | none |
+| R6 (2026-11-13) | Workspace lifecycle in tests goes through the **coder CLI inside the coder container** (create/delete) and **POST /workspaces/{id}/builds** (stop/start): Coder v2.36 removed the old REST routes (POST /workspaces → 405, DELETE → 405, PUT …/stop → 404). Reads stay REST (list/get by UUID — usernames rejected). | verified empirically during the verification pass (tests/lib/coder.sh) | test helpers must use the CLI/builds routes, not pre-2.36 REST |
+| R7 (2026-11-13) | LiteLLM 1.83 key payload fields are `rpm_limit`/`tpm_limit` — the old `rpm`/`tpm` are **silently ignored** (limits never applied). Model-allowlist denial is **401** `key_model_access_denied`; per-key records live at `/key/info` (`/key/list` returns bare key strings). | verified empirically (gateway probes + test_gateway) | scripts/tests pinned to these shapes; upgrade notes if LiteLLM pin moves |
+| R8 (2026-11-13) | Deploy log (`scripts/lib/deploy-log.sh`, `make deploy-log`) records every container/image/volume/network this project creates on the shared host, each with its exact removal command — owner requirement for cleaning the machine later without re-testing. | owner: "khi deploy gì là phải log lại" | keep logging in every new make target/script that creates artifacts |
 
 ## Test log (latest first)
 
 | Date | Command | Result |
 |---|---|---|
+| 2026-11-13 | **Local verification pass** (stack fresh-up, `make bootstrap` green: template `docker-standard` pushed, demo key issued) | ✅ |
+| 2026-11-13 | `make test-unit` | ✅ 15/15 |
+| 2026-11-13 | `make test-infra` (terraform fmt/validate, template fmt, no secrets) | ✅ 5/5 |
+| 2026-11-13 | `make test-integration` — platform 9/9 · workspace image 15/15 · gateway 12/12 · e2e 16/16 · isolation 10/10 · persistence 8/8 | ✅ 70/70 (persistence + gateway re-run solo after mid-run helper fixes; every file green against the final code) |
+| 2026-11-13 | `make test-security` — auth 8/8 · container isolation 9/9 · gateway hardening 7/7 | ✅ 24/24 |
+| 2026-11-13 | manual probes: 7 real workspaces built/stopped/deleted via CLI + builds-API; AI round-trip from inside a workspace (`MOCK RESPONSE`); all probes + volumes cleaned | ✅ |
 | 2026-11-10 | `make test-unit` (11 assertions: compose config parse, 19 interpolated vars, no-latest pins, bash -n all scripts, template invariants, opencode.json sync, CHANGE_ME policy, .env untracked) | ✅ 11/11 pass |
 | 2026-11-10 | manual: `docker compose up -d` → all 3 services healthy; `scripts/bootstrap.sh` → first admin + session + demo virtual key; mock completion round-trip via virtual key; 401 revoked-key path; 429 rpm-burst path | ✅ all observed (session log) |
 | 2026-11-10 | manual: `docker build` workspace image (node 24 base, code-server 4.145.2, opencode 1.19.5) | ✅ exit 0 |
-| — | `make test` full suite (unit+infra+integration+security), `make test-infra` (terraform fmt/validate), integration e2e workspace tests, security suites | ⏳ pending verification pass (R3) |
 
 ## Known limitations (current)
 

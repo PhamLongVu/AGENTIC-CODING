@@ -30,9 +30,11 @@ assert_cmd_fails "no sudo in image" docker run --rm "$IMAGE" bash -lc 'command -
 assert_cmd_fails "no docker socket visible" docker run --rm "$IMAGE" bash -lc 'test -S /var/run/docker.sock'
 
 echo "== workspace image: pinned tool versions =="
-assert_contains "$(docker run --rm "$IMAGE" code-server --version | head -1)" "4.145.2" \
+# NB: code-server --version also writes an "info: Wrote default config file"
+# line to stdout first — so match on the full output, not the first line.
+assert_contains "$(docker run --rm "$IMAGE" code-server --version)" "4.145.2" \
   "code-server version matches pin"
-assert_contains "$(docker run --rm "$IMAGE" opencode --version | head -1)" "1.19.5" \
+assert_contains "$(docker run --rm "$IMAGE" opencode --version)" "1.19.5" \
   "opencode version matches pin"
 
 echo "== workspace image: both services healthy in-container =="
@@ -51,8 +53,10 @@ echo "== workspace image: shared project directory wiring =="
 docker exec "$CTR" bash -c 'echo shared-proof > /home/coder/projects/proof.txt'
 assert_eq "$(docker exec "$CTR" cat /home/coder/projects/proof.txt)" "shared-proof" \
   "project dir read/write via shell"
-CS_PIDS="$(docker exec "$CTR" bash -c "ps -eo args | grep -c '[c]ode-server'")
-OC_PIDS="$(docker exec "$CTR" bash -c "ps -eo args | grep -c '[o]pencode serve'")
+# NB: match the launcher arg pattern, not just the binary name — code-server
+# forks a child that also carries the name, so a bare name-count is 2.
+CS_PIDS="$(docker exec "$CTR" bash -c "ps -eo args | grep -c '[c]ode-server --bind-addr'")"
+OC_PIDS="$(docker exec "$CTR" bash -c "ps -eo args | grep -c '[o]pencode serve --hostname'")"
 assert_contains "$CS_PIDS" "1" "code-server process running"
 assert_contains "$OC_PIDS" "1" "opencode serve process running"
 # both processes' cwd is the shared volume path

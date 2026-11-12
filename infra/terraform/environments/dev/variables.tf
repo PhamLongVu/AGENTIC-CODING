@@ -17,8 +17,8 @@ variable "availability_zone" {
 }
 
 variable "vpc_cidr" {
-  type        = string
-  default     = "10.42.0.0/24"
+  type    = string
+  default = "10.42.0.0/24"
 }
 
 variable "instance_type" {
@@ -28,8 +28,8 @@ variable "instance_type" {
 }
 
 variable "root_volume_size_gb" {
-  type        = number
-  default     = 200
+  type    = number
+  default = 200
 }
 
 variable "admin_cidr" {
@@ -44,11 +44,11 @@ variable "dev_cidr" {
 }
 
 variable "ssh_key_name" {
-  type        = string
-  default     = null
+  type    = string
+  default = null
 }
 
 variable "cost_center" {
-  type        = string
-  default     = "mvp-poc"
+  type    = string
+  default = "mvp-poc"
 }

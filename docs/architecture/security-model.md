@@ -8,7 +8,7 @@ assumptions, and the known limitations of the single-instance MVP.
 | Threat | Primary controls | Residual risk |
 |---|---|---|
 | Developer A accesses Developer B's workspace/files | Per-workspace container + dedicated docker network + per-workspace volume; no shared mounts; Coder RBAC | Container-level isolation only (shared kernel) — accepted for POC, see §6 |
-| Workspace escapes to host | Non-root user, dropped capabilities, no privileged mode, no host mounts, no host networking, seccomp default, pids limit | Kernel exploits shared-host risk remains — accepted for trusted-team POC |
+| Workspace escapes to host | Non-root user, dropped capabilities, no privileged mode, no host mounts, no host networking, seccomp default, CPU/memory limits | Kernel exploits shared-host risk remains — accepted for trusted-team POC; no pids cap (provider limitation, KNOWN_ISSUES) |
 | Workspace reaches EC2 metadata ( credential theft) | IMDSv2 required, hop limit 1 → bridge-network containers cannot obtain instance-profile tokens; only LiteLLM (host network) can | Host-network processes are trusted by definition |
 | AWS credentials leak into workspaces | Bedrock only via LiteLLM; no static AWS keys anywhere; workspaces get only LiteLLM virtual keys | Virtual key theft → contained by per-key budget/rate limits + revocation |
 | Docker socket abuse | Socket mounted **only** into the Coder server container (control plane); workspace image contains no docker CLI and template mounts no socket; workspace containers cannot see the control plane network | Compromise of coder server = host compromise (documented, monitored) |
@@ -55,7 +55,8 @@ EC2 instance profile role "cloud-coding-litellm"
 - Image runs everything as `coder` (uid 1000); sudo is never installed;
   setuid binaries are asserted absent by test.
 - Template enforces: `privileged=false`, `capabilities.drop=[ALL]`,
-  `security_opts=["no-new-privileges:true"]`, `pids_limit`, CPU/memory limits;
+  `security_opts=["no-new-privileges:true"]`, CPU/memory limits (the
+  kreuzwerker/docker provider exposes no `pids_limit` — known limitation);
   read-only rootfs *not* forced (dev toolchains write too much; documented
   trade-off).
 - One docker network per workspace → workspaces cannot address each other.

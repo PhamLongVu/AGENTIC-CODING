@@ -33,8 +33,10 @@ RUN npm install -g "code-server@${CODE_SERVER_VERSION}" "opencode-ai@${OPENCODE_
  && npm cache clean --force
 
 # --- non-root user --------------------------------------------------------------
-RUN groupadd --gid 1000 coder \
- && useradd --create-home --uid 1000 --gid 1000 --shell /bin/bash coder
+# The node base image already ships user/group `node` at uid/gid 1000 —
+# rename it instead of colliding with groupadd.
+RUN groupmod -n coder node \
+ && usermod -l coder -d /home/coder -m -s /bin/bash node
 
 # --- service launcher (used by the Coder workspace startup script) --------------
 COPY --chown=coder:coder images/development/start-workspace-services.sh /usr/local/bin/start-workspace-services.sh
@@ -47,6 +49,12 @@ COPY opencode/config/opencode.json /opt/defaults/opencode.json
 # code-server settings seeded once per volume at first start.
 COPY code-server/config/default-settings.json /opt/defaults/code-server-settings.json
 RUN chmod 0444 /opt/defaults/*.json
+
+# --- hardening: strip ALL setuid/setgid bits ------------------------------------
+# Debian base ships su/mount/passwd/... setuid; a coding workspace never needs
+# them (non-root, no password auth). Asserted by tests/security/
+# test_container_isolation.sh ("no setuid binaries reachable").
+RUN find / -xdev -perm /6000 -type f -exec chmod a-s {} + 2>/dev/null || true
 
 USER coder
 WORKDIR /home/coder

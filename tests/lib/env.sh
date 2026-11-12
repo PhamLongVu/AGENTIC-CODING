@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # Shared test/script environment: loads .env safely and exports the vars
 # tests and scripts need. Never prints secret values.
-set -euo pipefail
+# NB: NO `set -e` here on purpose — this file is sourced by callers that
+# manage their own error policy; forcing -e on them makes any failing
+# command substitution (e.g. curl exit 6) abort their scripts silently.
+set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 

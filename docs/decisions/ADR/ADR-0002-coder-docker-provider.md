@@ -19,7 +19,8 @@ The template:
 - creates one named volume per workspace mounted at `/home/coder` (persists
   across stop/start; destroyed only on workspace delete),
 - creates one bridge network per workspace (peer isolation),
-- enforces CPU / memory / pids limits by profile parameter,
+- enforces CPU / memory limits by profile parameter (the provider exposes
+  no pids limit — recorded as a known limitation),
 - drops all Linux capabilities, sets `no-new-privileges`, disables privileged,
 - exposes code-server (:8080) and OpenCode (:4096) as Coder workspace apps
   reachable only through the authenticated Coder proxy,

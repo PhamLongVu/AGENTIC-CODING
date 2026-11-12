@@ -12,35 +12,42 @@ Security-relevant items mirror `docs/architecture/security-model.md`.
 | 3 | **Workspace disk quota is advisory** (Docker volumes have no hard per-volume cap) | Medium | One workspace can fill the host disk. Monitored via Home metadata tile + `docker system df` (cost-management runbook). Fix: XFS project quotas or per-workspace LVs (deferred). |
 | 4 | **Backups are on-host** until manually copied off-host | Medium | `make backup` writes to `backups/` on the same EBS volume. Runbook step: copy off-host after every backup (backup-restore.md). Fix: S3 sync (deferred until requirement shown). |
 | 5 | **Capacity numbers are modeled, not measured** (5 concurrent workspaces on m6a.2xlarge) | Medium | ADR-0007 requires measured numbers before any capacity claim (Phase 4). |
-| 6 | **Mock provider bills USD 0** → per-key budget *exhaustion* cannot be tested locally | Low | Revocation (401) and rpm-burst (429) paths ARE tested; budget field is recorded on the key (verified via `/key/list`). Real exhaustion test = Bedrock mode with real spend (owner-approved session only). |
+| 6 | **Mock provider bills USD 0** → per-key budget *exhaustion* cannot be tested locally | Low | Revocation (401), model-allowlist (401) and rpm-burst (429) paths ARE tested; budget field is recorded on the key (verified via `/key/info`). Real exhaustion test = Bedrock mode with real spend (owner-approved session only). |
 | 7 | **`litellm_virtual_key` appears in workspace build state** (Terraform rich parameter, marked sensitive → not shown in UI/logs, but stored in Coder DB) | Low | Same class as any agent env var. Mitigations: key is revocable instantly, scoped to model allowlist + budget. Documented in security-model.md. |
 | 8 | **Coder template uses `kreuzwerker/docker` provider ~3.0 against Docker Engine API on host** — provider upgrades can shift behavior | Low | Pinned version; template tested in integration suite. |
 | 9 | **Single Postgres container** (no HA, no automated failover) | Accepted | Baseline: single host. Backups via `scripts/backup.sh`. |
 
 ## Expected first-run issues (verification pass — ruling R3)
 
-Written-not-verified code. A static review pass (independent code-review
-agent, 2026-11-10) already found and fixed 10 concrete defects before the
-first run — see PROJECT_STATUS.md. What remains genuinely unverified:
+**Resolved 2026-11-12/13 local verification pass** — every item below was
+exercised for real and either verified or fixed:
 
-1. **`scripts/coder/push-template.sh` CLI flags** — flow restructured
-   (list-first, then push-or-create), but the exact `templates push/create`
-   flag set in Coder v2.36.3 is still unverified.
-2. **Rich parameter shape** in `coder_create_workspace`
-   (`tests/lib/coder.sh`) — `rich_parameter_values:[{name,value}]` is the
-   documented shape; verify against actual API.
-3. **OpenCode serve flags / healthcheck path** — `opencode serve --hostname
-   --port` and `GET /` liveness written from docs; may need adjustment.
-4. **Compose `!reset` YAML tag** (deploy/compose/aws.yml) requires Docker
-   Compose v2.24+ — check host version before AWS mode.
-5. **LiteLLM rpm limiter behavior** — burst vs strict enforcement was
-   observed burstable locally; test asserts ≥1 429 within a 6-shot burst at
-   rpm=1 (may need count/timeout tuning).
-6. **kreuzwerker/docker provider version resolution** — `~3.0` constraint
-   must resolve during `terraform init` inside the coder container
-   (test-infra runs `init -backend=false` first).
+1. **push-template CLI flags** — verified: `templates create/push
+   --directory --yes` work as written in v2.36.3 (7 successive template
+   schema bugs fixed instead; see PROJECT_STATUS 2026-11-12 entry).
+2. **Rich parameter shape** — superseded: workspace create/delete/stop all
+   shell out to the coder CLI inside the coder container (v2.36 changed the
+   REST routes: POST /workspaces → 405, DELETE → 405, PUT stop → 404).
+   Parameters verified flowing: `--parameter name=value`.
+3. **OpenCode serve flags / healthcheck** — verified: `opencode serve
+   --hostname 127.0.0.1 --port 4096`, `GET /` answers; both apps report
+   healthy through the Coder proxy.
+4. **Compose `!reset`** — still AWS-only; local host has Compose v5.0.2
+   (≥ 2.24), so it will apply. Re-check on the EC2 host at AWS time.
+5. **LiteLLM rpm limiter** — fixed for real: the pinned version renamed the
+   payload fields (`rpm` → `rpm_limit`, `tpm` → `tpm_limit`); old fields
+   were silently ignored, so limits never applied. With `rpm_limit=1` a
+   4-burst returns `200 429 429 429` (test_gateway).
+6. **kreuzwerker/docker ~3.0** — verified: resolves to 3.9.0, `init
+   -backend=false` + full workspace builds succeed.
 
-None of these are architecture risks; all are mechanical fixes.
+New known limitations found by the same pass (kept, not regressions):
+- **No pids limit**: the kreuzwerker/docker provider exposes no `PidsLimit`
+  (item 8 above); e2e asserts it is unset so docs stay honest.
+- **Parameter values do NOT flow into same-named terraform `variable`s** —
+  read `data.coder_parameter.<name>.value` instead (template comment).
+- **`docker exec` sessions do not see agent env vars** — only the agent's
+  children do; tests assert env plumbing via `/proc/<pid>/environ`.
 
 ## Fixed by the static review pass (2026-11-10, pre-first-run)
 

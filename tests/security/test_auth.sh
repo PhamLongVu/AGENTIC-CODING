@@ -25,7 +25,10 @@ assert_eq "$code" "401" "user creation without admin session -> 401"
 
 DEMO_USER="dev-$(date +%s)"
 DEMO_PASS="devuser-pass-1"
-OUT="$(coder_api POST /api/v2/users "{\"username\":\"$DEMO_USER\",\"email\":\"$DEMO_USER@example.invalid\",\"password\":\"$DEMO_PASS\",\"login_type\":\"password\"}")"
+# v2.36: user creation requires organization_ids (>= 1 membership)
+ORG_ID="$(coder_api GET /api/v2/users/me | jq -r '.organization_ids[0]')"
+OUT="$(coder_api POST /api/v2/users "$(jq -n --arg u "$DEMO_USER" --arg o "$ORG_ID" --arg p "$DEMO_PASS" \
+  '{username: $u, email: ($u+"@example.invalid"), password: $p, login_type: "password", organization_ids: [$o]}')")"
 assert_contains "$OUT" '"id"' "admin can create developer users (operator onboarding path)"
 cleanup() { coder_api DELETE "/api/v2/users/$(echo "$OUT" | jq -r .id)/workspaces" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
@@ -45,8 +48,9 @@ code="$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOK" \
 
 echo "== auth: app proxy requires coder session =="
 # unauthenticated fetch of a (possibly nonexistent) workspace app path must
-# not return 200 application content
-code="$(curl -s -o /dev/null -w '%{http_code}' "$CODER_ACCESS_URL/@$CODER_ADMIN_USER/x/apps/code-server/")"
+# not return 200 application content. (Use the API host: host.docker.internal
+# is browser-only and may not resolve where tests run.)
+code="$(curl -s -o /dev/null -w '%{http_code}' "$CODER_API_URL/@$CODER_ADMIN_USER/x/apps/code-server/")"
 [[ "$code" != "200" ]] && _t_ok "app path without session not served ($code)" || _t_fail "app proxy served anonymous request"
 
 finish_suite "test_auth"

@@ -17,8 +17,8 @@ BUDGET="${2:-}"
 RPM="${3:-}"
 TPM="${4:-}"
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-# shellcheck source=../../tests/lib/env.sh
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+# shellcheck source=../../../tests/lib/env.sh
 source "$ROOT/tests/lib/env.sh"
 
 # --- payload ------------------------------------------------------------
@@ -27,10 +27,11 @@ if [[ -n "$BUDGET" ]]; then
   PAYLOAD=$(echo "$PAYLOAD" | jq --arg b "$BUDGET" '. + {max_budget: ($b|tonumber)}')
 fi
 if [[ -n "$RPM" ]]; then
-  PAYLOAD=$(echo "$PAYLOAD" | jq --argjson r "$RPM" '. + {rpm: $r}')
+  # LiteLLM >= 1.83 renamed the payload fields: rpm -> rpm_limit, tpm -> tpm_limit
+  PAYLOAD=$(echo "$PAYLOAD" | jq --argjson r "$RPM" '. + {rpm_limit: $r}')
 fi
 if [[ -n "$TPM" ]]; then
-  PAYLOAD=$(echo "$PAYLOAD" | jq --argjson t "$TPM" '. + {tpm: $t}')
+  PAYLOAD=$(echo "$PAYLOAD" | jq --argjson t "$TPM" '. + {tpm_limit: $t}')
 fi
 
 # --- call the gateway ----------------------------------------------------

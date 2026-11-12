@@ -7,6 +7,7 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 source tests/lib/env.sh
+source scripts/lib/deploy-log.sh
 
 # --- preconditions -------------------------------------------------------------
 if ! docker compose ps --format json 2>/dev/null | jq -se 'length > 0' >/dev/null 2>&1; then
@@ -27,16 +28,25 @@ if [[ "$AI_PROVIDER_MODE" != "mock" ]]; then
 fi
 
 FAILED=0
+dlog_section "make test-integration"
 for t in tests/integration/test_*.sh; do
   echo ""
   echo "===================================================================="
   echo "  $t"
   echo "===================================================================="
+  dlog "run $t"
   if ! bash "$t"; then
     FAILED=$((FAILED + 1))
     echo "  >>> SUITE FAIL: $t"
+    dlog "FAIL $t (any workspace containers it leaked are in the snapshot below)"
+  else
+    dlog "PASS $t"
   fi
 done
+# snapshot AFTER the suite: catches leaked workspace containers/volumes
+# (e2e/isolation create real workspaces; their cleanup traps should delete
+# them — if a leak shows up here, it is a bug AND a cleanup to-do)
+dlog_inventory
 
 echo ""
 if [[ $FAILED -gt 0 ]]; then

@@ -52,3 +52,6 @@ Thumbs.db
 dist/
 build/
 *.tar.gz
+
+# deploy log (host-local artifact inventory)
+DEPLOY_LOG.local.md

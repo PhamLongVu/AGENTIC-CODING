@@ -50,14 +50,16 @@ assert_eq "$code" "401" "revoked key dead immediately"
 echo "== hardening: budgets are recorded on keys (enforced upstream of mock) =="
 K2="$(gateway/litellm/scripts/create-virtual-key.sh "$ALIAS-2" 20 30)"
 KEYS+=("$K2")
-INFO="$(curl -s "$LITELLM_BASE_URL/key/list" -H "Authorization: Bearer $LITELLM_MASTER_KEY" \
-  | jq -c --arg a "$ALIAS-2" '.keys[]? | select(.key_alias==$a)')"
+INFO="$(curl -s "$LITELLM_BASE_URL/key/info?key=$K2" -H "Authorization: Bearer $LITELLM_MASTER_KEY" \
+  | jq -c '.info')"
+assert_contains "$INFO" '"key_alias":"'"$ALIAS-2"'"' "alias stored on key record"
 assert_contains "$INFO" '"max_budget":20' "budget stored on key record"
 
 echo "== hardening: model allowlist on virtual keys =="
 code="$(curl -s -o /dev/null -w '%{http_code}' "$LITELLM_BASE_URL/v1/chat/completions" \
   -H "Authorization: Bearer $K2" -H 'Content-Type: application/json' \
   -d '{"model":"openai/gpt-4o","messages":[{"role":"user","content":"hi"}]}')"
-assert_eq "$code" "400" "non-allowlisted model rejected"
+# LiteLLM 1.83 denies with 401 key_model_access_denied (not 400)
+assert_eq "$code" "401" "non-allowlisted model rejected (401 key_model_access_denied)"
 
 finish_suite "test_gateway_hardening"
