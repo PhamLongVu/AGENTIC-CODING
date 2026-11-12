@@ -38,6 +38,7 @@ platform, newest section last. Live truth: `make deploy-log`.
 | platform containers + network | `make down` |
 | + platform volumes (postgres, coder home) | `make destroy-dev L=data` |
 | workspace containers + ALL workspace volumes (developer data!) | `make destroy-dev L=workspaces` (types confirmation) |
+| FULL reset (volumes + workspace image + session files) | `make destroy-dev L=all` (types confirmation; rebuild: `make up && make bootstrap && make build-workspace`) |
 | workspace image | `docker image rm cloudcoding-workspace:dev` |
 | pulled platform images (optional) | `docker image rm postgres:16.4-alpine3.20 ghcr.io/berriai/litellm-database:main-v1.83.14-stable.patch.3 ghcr.io/coder/coder:v2.36.3 hashicorp/terraform:1.9.8 curlimages/curl:8.10.1 alpine:3.20` |
 | local files | `rm -f .coder-session .demo-virtual-key DEPLOY_LOG.local.md && rm -rf backups/` (keep `.env` if reusing) |
